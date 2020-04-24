@@ -32,6 +32,11 @@ class App:
         self.analyse_button = tkinter.Button(window, text="Analyse video", command=self.analyse)
         self.analyse_button.pack(side=tkinter.RIGHT)
 
+        self.timing_scale_value = 0
+
+        self.timing_scale = tkinter.Scale(window, command=self.move, orient=tkinter.HORIZONTAL, length=600,
+                showvalue=0)
+
         self.delay = 15
         self.update()
 
@@ -51,8 +56,13 @@ class App:
 
             ret, frame = self.video_source.get_frame()
             if ret:
+                self.timing_scale.destroy()
                 self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
                 self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
+                self.timing_scale = tkinter.Scale(self.window, command=self.move, orient=tkinter.HORIZONTAL,
+                                                  length=600, showvalue=0, to=self.video_source.get_frames_num())
+                self.timing_scale.pack(side=tkinter.BOTTOM)
+                self.timing_scale_value = 0
 
     def play(self):
         self.play_video = True
@@ -60,6 +70,12 @@ class App:
 
     def stop(self):
         self.play_video = False
+
+    def move(self, val):
+        self.video_source.set_frame(int(val))
+        self.timing_scale_value = int(val)
+        print(val)
+
 
     def analyse(self):
         pass
@@ -72,5 +88,7 @@ class App:
             if ret:
                 self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
                 self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
+                self.timing_scale_value += 1
+                self.timing_scale.set(self.timing_scale_value)
 
             self.window.after(self.delay, self.update)

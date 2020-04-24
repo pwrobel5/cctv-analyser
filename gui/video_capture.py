@@ -28,3 +28,13 @@ class VideoCapture:
                 return ret, None
         else:
             return None, None
+
+
+    def set_frame(self, val):
+        self.vid.set(cv2.CAP_PROP_POS_FRAMES, int(val))
+
+
+    def get_frames_num(self):
+        return self.vid.get(cv2.CAP_PROP_FRAME_COUNT)
+
+
