@@ -22,19 +22,22 @@ class VideoCapture:
         if self.vid.isOpened():
             ret, frame = self.vid.read()
             if ret:
-                # Return a boolean success flag and the current frame converted to BGR
+                # Return a boolean success flag and the current frame converted to RGB
                 return ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             else:
                 return ret, None
         else:
             return None, None
 
-
     def set_frame(self, val):
         self.vid.set(cv2.CAP_PROP_POS_FRAMES, int(val))
-
 
     def get_frames_num(self):
         return self.vid.get(cv2.CAP_PROP_FRAME_COUNT)
 
-
+    def get_fps(self):
+        (opencv_version, _, _) = (cv2.__version__).split(".")
+        if int(opencv_version) < 3:
+            return self.vid.get(cv2.cv.CV_CAP_PROP_FPS)
+        else:
+            return self.vid.get(cv2.CAP_PROP_FPS)
