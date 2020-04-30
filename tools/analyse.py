@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 """
         to parametrize:
@@ -8,29 +9,39 @@ import cv2
           do we really need to convert image to grayscale?
           delta threshold - how much different from black must be area to consider it as a movement
           minimum area to detect motion
+          maybe it's better to use running average rather than reference frame
+          alpha for running average
 """
 
 
 class Analyser:
-    def __init__(self, reference_frame, blur_size=21, move_threshold=25, dilation_iterations=2):
-        reference_frame = cv2.cvtColor(reference_frame, cv2.COLOR_RGB2GRAY)
+    def __init__(self, reference_frame, blur_size=21, move_threshold=25, dilation_iterations=2, use_running_average=True, alpha=0.020):
         # TODO - what does this 0 mean?
         self._reference_frame = cv2.GaussianBlur(reference_frame, (blur_size, blur_size), 0)
-        self._minimal_area = 200
+        self._minimal_area = 400
         self._blur_size = blur_size
         self._move_threshold = move_threshold
         self._dilation_iterations = dilation_iterations
+        self._use_running_average = use_running_average
+        self._running_average = np.float32(reference_frame)
+        self._average_alpha = alpha
 
     def analyse_frame(self, frame):
         text = "No motion"
-        analysed_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        analysed_frame = cv2.GaussianBlur(analysed_frame, (self._blur_size, self._blur_size), 0)
+        analysed_frame = cv2.GaussianBlur(frame, (self._blur_size, self._blur_size), 0)
 
-        frame_delta = cv2.absdiff(self._reference_frame, analysed_frame)
+        if self._use_running_average:
+            cv2.accumulateWeighted(analysed_frame, self._running_average, 0.020, None)  # alpha could be parametrised
+            frame_delta = cv2.subtract(self._running_average, analysed_frame, dtype=cv2.CV_32F)
+            frame_delta = cv2.convertScaleAbs(frame_delta)
+        else:
+            frame_delta = cv2.absdiff(self._reference_frame, analysed_frame)
+        frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_RGB2GRAY)
         threshold = cv2.threshold(frame_delta, self._move_threshold, 255, cv2.THRESH_BINARY)[1]
+        threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, None)
         threshold = cv2.dilate(threshold, None, iterations=self._dilation_iterations)
 
-        contours = cv2.findContours(threshold.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = cv2.findContours(threshold.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
         # length of contours and position of needed element to read is dependent on OpenCV version
         if len(contours) == 2:
             contours = contours[0]
@@ -40,6 +51,8 @@ class Analyser:
             print("Error")
             return None
 
+        motion_detected = False
+
         for contour in contours:
             if cv2.contourArea(contour) < self._minimal_area:
                 continue
@@ -47,10 +60,11 @@ class Analyser:
             (x, y, w, h) = cv2.boundingRect(contour)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
             text = "Motion detected"
+            motion_detected = True
 
         cv2.putText(frame, "Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 255), 2)
-        return frame
+        return frame, motion_detected
 
     @property
     def reference_frame(self):
