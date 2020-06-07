@@ -36,8 +36,12 @@ class VideoCapture:
         return self.vid.get(cv2.CAP_PROP_FRAME_COUNT)
 
     def get_fps(self):
-        (opencv_version, _, _) = (cv2.__version__).split(".")
+        (opencv_version, _, _) = cv2.__version__.split(".")
         if int(opencv_version) < 3:
             return self.vid.get(cv2.cv.CV_CAP_PROP_FPS)
         else:
             return self.vid.get(cv2.CAP_PROP_FPS)
+
+    def get_frame_by_index(self, index):
+        self.set_frame(index)
+        return self.get_frame()

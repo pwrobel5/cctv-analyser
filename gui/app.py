@@ -6,6 +6,8 @@ import PIL.Image
 import PIL.ImageTk
 
 from tools.analyse import Analyser
+from tools.parameters import Parameters
+from .parameters_window import ParametersWindow
 from .video_capture import VideoCapture
 
 
@@ -18,24 +20,26 @@ class App:
         self.photo = None
         self.play_video = False
         self.analyse_video = False
-        self.running_avg = False
         self.already_moving = False
         self.moving_list = [None, None]
 
-        self.__create_frames__()
-        self.__fill_display_frame__()
-        self.__fill_control_frame__()
-        self.__fill_analyse_frame__()
+        self.__create_frames()
+        self.__fill_display_frame()
+        self.__fill_control_frame()
+        self.__fill_analyse_frame()
 
         self.timing_scale_value = 0
         self.delay = 15
         self.update()
         self.analyser = None
 
+        self._parameters = Parameters()
+        self._parameters_window = None
+
         self.window.mainloop()
 
-    def __create_frames__(self):
-        # highlightbackorund + highlightthickness only for testing element placing, remove in the future
+    def __create_frames(self):
+        # TODO - highlightbackorund + highlightthickness only for testing element placing, remove in the future
         self.display_frame = tkinter.Frame(self.window, highlightbackground="black", highlightthickness=1)
         self.display_frame.grid(row=0, column=0)
 
@@ -45,11 +49,11 @@ class App:
         self.control_frame = tkinter.Frame(self.window, highlightbackground="black", highlightthickness=1)
         self.control_frame.grid(row=1, columnspan=2)
 
-    def __fill_display_frame__(self):
+    def __fill_display_frame(self):
         self.canvas = tkinter.Canvas(self.display_frame, width=300, height=300)
         self.canvas.pack()
 
-    def __fill_control_frame__(self):
+    def __fill_control_frame(self):
         self.browse_button = tkinter.Button(self.control_frame, text="Browse video file", command=self.browse)
         self.browse_button.pack(side=tkinter.RIGHT)
 
@@ -63,7 +67,7 @@ class App:
                                           showvalue=0)
         self.timing_scale.pack(side=tkinter.TOP)
 
-    def __fill_analyse_frame__(self):
+    def __fill_analyse_frame(self):
         self.fragment_list = ttk.Treeview(self.analyse_frame, columns=["beginning", "end"], show="headings")
         self.fragment_list.pack()
 
@@ -77,6 +81,10 @@ class App:
                                                         command=self.use_running_avg,
                                                         variable=self.running_avg_checked)
         self.running_avg_checkbox.pack(side=tkinter.BOTTOM)
+
+        self.set_parameters_button = tkinter.Button(self.analyse_frame, text="Set analysis parameters",
+                                                    command=self.open_parameters_button)
+        self.set_parameters_button.pack(side=tkinter.BOTTOM)
 
     def browse(self):
         path = filedialog.askopenfilename()
@@ -103,19 +111,18 @@ class App:
         self.video_source.set_frame(int(val))
         self.timing_scale_value = int(val)
 
+    def open_parameters_button(self):
+        if self._parameters_window is None:
+            self._parameters_window = ParametersWindow(self.window, self._parameters)
+        else:
+            self._parameters_window.show()
+
     def analyse(self):
-        """
-        to parametrize:
-          first reference frame - maybe user could set which is correct?
-          size of Gaussian smoothing
-          eventual resizing - would make the process faster
-          do we really need to convert image to grayscale?
-          delta threshold - how much different from black must be area to consider it as a movement
-          minimum area to detect motion
-        """
         if self.analyser is None:
-            reference_frame = self.jump_to_video_beginning()
-            self.analyser = Analyser(reference_frame, use_running_average=self.running_avg)
+            ret, reference_frame = self.video_source.get_frame_by_index(self._parameters.first_reference_frame_index)
+            if not ret:
+                print("Error with loading reference frame")
+            self.analyser = Analyser(reference_frame, self._parameters)
 
         self.analyse_video = bool(self.analyse_checked.get())
 
@@ -131,7 +138,6 @@ class App:
                                               length=600, showvalue=0, to=self.video_source.get_frames_num())
             self.timing_scale.pack(side=tkinter.TOP)
             self.timing_scale_value = 0
-        return frame
 
     def update(self):
         # Get a frame from the video source
@@ -157,4 +163,4 @@ class App:
             self.window.after(self.delay, self.update)
 
     def use_running_avg(self):
-        self.running_avg = bool(self.running_avg_checked.get())
+        self._parameters.use_running_average = bool(self.running_avg_checked.get())
