@@ -13,7 +13,6 @@ class App:
     def __init__(self, window, window_title):
         self.window = window
         self.window.title(window_title)
-        self.window.geometry("775x400")
 
         self.video_source = None
         self.photo = None
@@ -23,42 +22,61 @@ class App:
         self.already_moving = False
         self.moving_list = [None, None]
 
-        # Canvas for video display
-        self.canvas = tkinter.Canvas(window, width=300, height=300)
-        self.canvas.place(x=0, y=0)
-
-        self.fragment_list = ttk.Treeview(columns=["beginning", "end"], show="headings")
-        self.fragment_list.place(x=350, y=0)
-
-        self.browse_button = tkinter.Button(window, text="Browse video file", command=self.browse)
-        self.browse_button.place(x=350, y=350)
-
-        self.play_button = tkinter.Button(window, text="Play video", command=self.play)
-        self.play_button.place(x=0, y=350)
-
-        self.stop_button = tkinter.Button(window, text="Stop", command=self.stop)
-        self.stop_button.place(x=100, y=350)
-
-        self.analyse_checked = tkinter.IntVar()
-        self.analyse_checkbox = tkinter.Checkbutton(window, text="Analyse video", command=self.analyse,
-                                                    variable=self.analyse_checked)
-        self.analyse_checkbox.place(x=350, y=300)
-
-        self.running_avg_checked = tkinter.IntVar()
-        self.running_avg_checkbox = tkinter.Checkbutton(window, text="Use running average", command=self.use_running_avg,
-                                                        variable=self.running_avg_checked)
-        self.running_avg_checkbox.place(x=500, y=300)
+        self.__create_frames__()
+        self.__fill_display_frame__()
+        self.__fill_control_frame__()
+        self.__fill_analyse_frame__()
 
         self.timing_scale_value = 0
-
-        self.timing_scale = tkinter.Scale(window, command=self.move, orient=tkinter.HORIZONTAL, length=600,
-                                          showvalue=0)
-
         self.delay = 15
         self.update()
         self.analyser = None
 
         self.window.mainloop()
+
+    def __create_frames__(self):
+        # highlightbackorund + highlightthickness only for testing element placing, remove in the future
+        self.display_frame = tkinter.Frame(self.window, highlightbackground="black", highlightthickness=1)
+        self.display_frame.grid(row=0, column=0)
+
+        self.analyse_frame = tkinter.Frame(self.window, highlightbackground="black", highlightthickness=1)
+        self.analyse_frame.grid(row=0, column=1)
+
+        self.control_frame = tkinter.Frame(self.window, highlightbackground="black", highlightthickness=1)
+        self.control_frame.grid(row=1, columnspan=2)
+
+    def __fill_display_frame__(self):
+        self.canvas = tkinter.Canvas(self.display_frame, width=300, height=300)
+        self.canvas.pack()
+
+    def __fill_control_frame__(self):
+        self.browse_button = tkinter.Button(self.control_frame, text="Browse video file", command=self.browse)
+        self.browse_button.pack(side=tkinter.RIGHT)
+
+        self.play_button = tkinter.Button(self.control_frame, text="Play video", command=self.play)
+        self.play_button.pack(side=tkinter.LEFT)
+
+        self.stop_button = tkinter.Button(self.control_frame, text="Stop", command=self.stop)
+        self.stop_button.pack(side=tkinter.LEFT)
+
+        self.timing_scale = tkinter.Scale(self.control_frame, command=self.move, orient=tkinter.HORIZONTAL, length=600,
+                                          showvalue=0)
+        self.timing_scale.pack(side=tkinter.TOP)
+
+    def __fill_analyse_frame__(self):
+        self.fragment_list = ttk.Treeview(self.analyse_frame, columns=["beginning", "end"], show="headings")
+        self.fragment_list.pack()
+
+        self.analyse_checked = tkinter.IntVar()
+        self.analyse_checkbox = tkinter.Checkbutton(self.analyse_frame, text="Analyse video", command=self.analyse,
+                                                    variable=self.analyse_checked)
+        self.analyse_checkbox.pack(side=tkinter.BOTTOM)
+
+        self.running_avg_checked = tkinter.IntVar()
+        self.running_avg_checkbox = tkinter.Checkbutton(self.analyse_frame, text="Use running average",
+                                                        command=self.use_running_avg,
+                                                        variable=self.running_avg_checked)
+        self.running_avg_checkbox.pack(side=tkinter.BOTTOM)
 
     def browse(self):
         path = filedialog.askopenfilename()
@@ -109,9 +127,9 @@ class App:
             self.timing_scale.destroy()
             self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
-            self.timing_scale = tkinter.Scale(self.window, command=self.move, orient=tkinter.HORIZONTAL,
+            self.timing_scale = tkinter.Scale(self.control_frame, command=self.move, orient=tkinter.HORIZONTAL,
                                               length=600, showvalue=0, to=self.video_source.get_frames_num())
-            self.timing_scale.place(x=0, y=325)
+            self.timing_scale.pack(side=tkinter.TOP)
             self.timing_scale_value = 0
         return frame
 
