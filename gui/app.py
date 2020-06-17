@@ -101,8 +101,9 @@ class App:
             self.jump_to_video_beginning()
 
     def play(self):
-        self.play_video = True
-        self.update()
+        if not self.play_video:
+            self.play_video = True
+            self.update()
 
     def stop(self):
         self.play_video = False
