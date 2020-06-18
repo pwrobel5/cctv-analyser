@@ -5,6 +5,8 @@ import tkinter.ttk as ttk
 import PIL.Image
 import PIL.ImageTk
 
+import datetime
+
 from tools.analyse import Analyser
 from tools.parameters import Parameters
 from .parameters_window import ParametersWindow
@@ -57,6 +59,9 @@ class App:
         self.browse_button = tkinter.Button(self.control_frame, text="Browse video file", command=self.browse)
         self.browse_button.pack(side=tkinter.RIGHT)
 
+        self.timing_video = tkinter.Label(self.control_frame, text="00:00:00", width=7)
+        self.timing_video.pack(side=tkinter.RIGHT)
+
         self.play_button = tkinter.Button(self.control_frame, text="Play video", command=self.play)
         self.play_button.pack(side=tkinter.LEFT)
 
@@ -99,6 +104,7 @@ class App:
             self.canvas.config(width=width, height=height)
             self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
             self.jump_to_video_beginning()
+
 
     def play(self):
         if not self.play_video:
@@ -160,7 +166,9 @@ class App:
                 self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
                 self.timing_scale_value += 1
                 self.timing_scale.set(self.timing_scale_value)
-
+                start_time = datetime.datetime(100, 1, 1, 0, 0, 0)
+                self.timing_video.config(text=str((start_time + datetime.timedelta(seconds=int(self.timing_scale_value /
+                                                                   self.video_source.get_fps()))).time()))
             self.window.after(self.delay, self.update)
 
     def use_running_avg(self):
