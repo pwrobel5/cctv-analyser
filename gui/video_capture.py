@@ -4,14 +4,22 @@ import cv2
 
 
 class VideoCapture:
-    def __init__(self, video_source):
+    def __init__(self, video_source, parameters):
         self.vid = cv2.VideoCapture(video_source)
         if not self.vid.isOpened():
             tkinter.messagebox.showerror(title="Error", message="Unable to open video source " + video_source)
             raise ValueError("Unable to open video source", video_source)
 
-        self.width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
-        self.height = self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        self.resize = False
+        self.parameters = parameters
+
+        if width > self.parameters.max_video_width or height > self.parameters.max_video_height:
+            self.resize = True
+
+        self.width = min(width, self.parameters.max_video_width)
+        self.height = min(height, self.parameters.max_video_height)
 
     # Release the video source when the object is destroyed
     def __del__(self):
@@ -23,6 +31,9 @@ class VideoCapture:
             ret, frame = self.vid.read()
             if ret:
                 # Return a boolean success flag and the current frame converted to RGB
+                if self.resize:
+                    frame = cv2.resize(frame, (self.parameters.max_video_width, self.parameters.max_video_height))
+
                 return ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             else:
                 return ret, None

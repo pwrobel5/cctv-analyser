@@ -95,7 +95,7 @@ class App:
         path = filedialog.askopenfilename()
         if path:
             try:
-                self.video_source = VideoCapture(path)
+                self.video_source = VideoCapture(path, self._parameters)
             except ValueError:
                 return
 
@@ -104,7 +104,6 @@ class App:
             self.canvas.config(width=width, height=height)
             self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
             self.jump_to_video_beginning()
-
 
     def play(self):
         if not self.play_video:
