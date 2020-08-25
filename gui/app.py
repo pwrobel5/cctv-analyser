@@ -19,6 +19,7 @@ class App:
         self.window.title(window_title)
 
         self.video_source = None
+        self.current_frame = None
         self.photo = None
         self.play_video = False
         self.analyse_video = False
@@ -36,7 +37,11 @@ class App:
         self.analyser = None
 
         self._parameters = Parameters()
+        self._parameters.add_callback("_max_video_width", self.__update_canvas_size_without_video)
+        self._parameters.add_callback("_max_video_height", self.__update_canvas_size_without_video)
         self._parameters_window = None
+
+        self.window.resizable(False, False)
 
         self.window.mainloop()
 
@@ -95,15 +100,37 @@ class App:
         path = filedialog.askopenfilename()
         if path:
             try:
-                self.video_source = VideoCapture(path, self._parameters)
+                self.video_source = VideoCapture(path, self._parameters, self.__update_canvas_size_with_video)
             except ValueError:
                 return
 
-            width = self.video_source.width
-            height = self.video_source.height
-            self.canvas.config(width=width, height=height)
+            self.__update_canvas_size_with_video()
             self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
             self.jump_to_video_beginning()
+
+    def __update_canvas_size(self, width, height):
+        self.canvas.config(width=width, height=height)
+
+    def __update_canvas_size_without_video(self):
+        width = self._parameters.max_video_width
+        height = self._parameters.max_video_height
+        self.__update_canvas_size(width, height)
+
+    def __update_canvas_size_with_video(self):
+        if self.video_source is not None:
+            width = self.video_source.width
+            height = self.video_source.height
+            self.__update_canvas_size(width, height)
+
+            if not self.play_video:
+                self.__resize_photo(width, height)
+
+    def __resize_photo(self, width, height):
+        if self.current_frame is not None:
+            image = PIL.Image.fromarray(self.current_frame)
+            image = image.resize((int(width), int(height)), PIL.Image.ANTIALIAS)
+            self.photo = PIL.ImageTk.PhotoImage(image=image)
+            self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
 
     def play(self):
         if not self.play_video:
@@ -138,6 +165,7 @@ class App:
         ret, frame = self.video_source.get_frame()
         if ret:
             self.timing_scale.destroy()
+            self.current_frame = frame
             self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
             self.timing_scale = tkinter.Scale(self.control_frame, command=self.move, orient=tkinter.HORIZONTAL,
@@ -161,6 +189,7 @@ class App:
                     elif motion_detected and not self.already_moving:
                         self.moving_list[0] = self.timing_scale_value / self.video_source.get_fps()
                         self.already_moving = True
+                self.current_frame = frame
                 self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
                 self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
                 self.timing_scale_value += 1
