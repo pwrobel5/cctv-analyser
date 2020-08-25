@@ -17,6 +17,15 @@ class Parameters:
         self._running_avg_alpha = defaults.RUNNING_AVG_ALPHA
         self._running_avg_start_frame_number = defaults.RUNNING_AVG_START_FRAME_NUMBER
 
+        self._callbacks = {property_name: [] for property_name, _ in vars(self).items()}
+
+    def add_callback(self, property_name, callback):
+        self._callbacks[property_name].append(callback)
+
+    def __run_callbacks(self, property_name):
+        for callback in self._callbacks[property_name]:
+            callback()
+
     @property
     def max_video_width(self):
         return self._max_video_width
@@ -24,6 +33,7 @@ class Parameters:
     @max_video_width.setter
     def max_video_width(self, max_video_width):
         self._max_video_width = max_video_width
+        self.__run_callbacks("_max_video_width")
 
     @property
     def max_video_height(self):
@@ -32,6 +42,7 @@ class Parameters:
     @max_video_height.setter
     def max_video_height(self, max_video_height):
         self._max_video_height = max_video_height
+        self.__run_callbacks("_max_video_height")
 
     @property
     def first_reference_frame_index(self):
