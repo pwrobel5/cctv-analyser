@@ -16,10 +16,15 @@ class Analyser:
         self._frame_counter += 1
 
         if self._parameters.use_running_average:
+            if not self.__check_if_running_avg_has_proper_size(analysed_frame):
+                self.__resize_running_average(analysed_frame)
+
             cv2.accumulateWeighted(analysed_frame, self._running_average, self._parameters.running_avg_alpha, None)
             frame_delta = cv2.subtract(self._running_average, analysed_frame, dtype=cv2.CV_32F)
             frame_delta = cv2.convertScaleAbs(frame_delta)
         else:
+            if not self.__check_if_reference_frame_has_proper_size(analysed_frame):
+                self.__resize_reference_frame(analysed_frame)
             frame_delta = cv2.absdiff(self._reference_frame, analysed_frame)
         frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_RGB2GRAY)
         threshold = cv2.threshold(frame_delta, self._parameters.delta_threshold, 255, cv2.THRESH_BINARY)[1]
@@ -56,6 +61,32 @@ class Analyser:
             print("Changed reference frame")
 
         return frame, motion_detected
+
+    def __check_if_reference_frame_has_proper_size(self, current_frame):
+        height, width, _ = current_frame.shape
+        ref_height, ref_width, _ = self._reference_frame.shape
+
+        if ref_height != height or ref_width != width:
+            return False
+
+        return True
+
+    def __check_if_running_avg_has_proper_size(self, current_frame):
+        height, width, _ = current_frame.shape
+        ref_height, ref_width, _ = self._running_average.shape
+
+        if ref_height != height or ref_width != width:
+            return False
+
+        return True
+
+    def __resize_reference_frame(self, current_frame):
+        width, height, _ = current_frame.shape
+        self._reference_frame = cv2.resize(self._reference_frame, (height, width))
+
+    def __resize_running_average(self, current_frame):
+        width, height, _ = current_frame.shape
+        self._running_average = cv2.resize(self._running_average, (height, width))
 
     @property
     def reference_frame(self):
