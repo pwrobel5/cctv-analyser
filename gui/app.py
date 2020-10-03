@@ -98,6 +98,10 @@ class App:
                                                     command=self.open_parameters_button)
         self.set_parameters_button.pack(side=tkinter.BOTTOM)
 
+        self.undo_detection_button = tkinter.Button(self.analyse_frame, text="Undo detection",
+                                                    command=self.undo_detection)
+        self.undo_detection_button.pack(side=tkinter.BOTTOM)
+
     def browse(self):
         path = filedialog.askopenfilename()
         if path:
@@ -151,6 +155,14 @@ class App:
             self._parameters_window = ParametersWindow(self.window, self._parameters)
         else:
             self._parameters_window.show()
+
+    def undo_detection(self):
+        selection_list = self.fragment_list.selection()
+        if len(selection_list) == 0:
+            return
+
+        for selected_fragment in selection_list:
+            self.fragment_list.delete(selected_fragment)
 
     def analyse(self):
         if self.analyser is None:
