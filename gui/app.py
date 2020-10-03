@@ -155,9 +155,26 @@ class App:
             ret, reference_frame = self.video_source.get_frame_by_index(self._parameters.first_reference_frame_index)
             if not ret:
                 print("Error with loading reference frame")
-            self.analyser = Analyser(reference_frame, self._parameters)
+
+            if self._parameters.use_running_average:
+                running_average_initial_frames = self.__read_initial_average_frames()
+                self.analyser = Analyser(reference_frame, self._parameters, running_average_initial_frames)
+            else:
+                self.analyser = Analyser(reference_frame, self._parameters)
 
         self.analyse_video = bool(self.analyse_checked.get())
+
+    def __read_initial_average_frames(self):
+        result = []
+        factor = self.video_source.get_frames_num() / self._parameters.running_avg_start_frame_number
+        frame_index = 0
+
+        for _ in range(0, self._parameters.running_avg_start_frame_number):
+            _, frame = self.video_source.get_frame_by_index(frame_index)
+            result.append(frame)
+            frame_index = int(frame_index + factor)
+
+        return result
 
     def jump_to_video_beginning(self):
         self.video_source.set_frame(0)
@@ -196,7 +213,7 @@ class App:
                 self.timing_scale.set(self.timing_scale_value)
                 start_time = datetime.datetime(100, 1, 1, 0, 0, 0)
                 self.timing_video.config(text=str((start_time + datetime.timedelta(seconds=int(self.timing_scale_value /
-                                                                   self.video_source.get_fps()))).time()))
+                                                                                               self.video_source.get_fps()))).time()))
             self.window.after(self.delay, self.update)
 
     def use_running_avg(self):
