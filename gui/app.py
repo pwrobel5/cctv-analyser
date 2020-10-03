@@ -79,6 +79,8 @@ class App:
 
     def __fill_analyse_frame(self):
         self.fragment_list = ttk.Treeview(self.analyse_frame, columns=["beginning", "end"], show="headings")
+        self.fragment_list.heading("beginning", text="beginning")
+        self.fragment_list.heading("end", text="end")
         self.fragment_list.pack()
 
         self.analyse_checked = tkinter.IntVar()
