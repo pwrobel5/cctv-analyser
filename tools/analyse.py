@@ -3,12 +3,24 @@ import numpy as np
 
 
 class Analyser:
-    def __init__(self, reference_frame, parameters):
-        # TODO - what does this 0 mean?
+    def __init__(self, reference_frame, parameters, frames_to_average=None):
         self._parameters = parameters
+        # TODO - what does this 0 mean?
         self._reference_frame = cv2.GaussianBlur(reference_frame, (parameters.blur_size, parameters.blur_size), 0)
-        self._running_average = np.float32(reference_frame)
+        self._running_average = Analyser.__calculate_average_frame(frames_to_average)
         self._frame_counter = 0
+
+    @staticmethod
+    def __calculate_average_frame(frames):
+        if not frames:
+            return None
+        result = np.zeros(frames[0].shape, np.float)
+        n_frames = len(frames)
+
+        for frame in frames:
+            result = result + frame / n_frames
+
+        return result
 
     def analyse_frame(self, frame):
         text = "No motion"
