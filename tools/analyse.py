@@ -34,14 +34,23 @@ class Analyser:
             cv2.accumulateWeighted(analysed_frame, self._running_average, self._parameters.running_avg_alpha, None)
             frame_delta = cv2.subtract(self._running_average, analysed_frame, dtype=cv2.CV_32F)
             frame_delta = cv2.convertScaleAbs(frame_delta)
+            cv2.imshow("Running average", self._running_average)
         else:
             if not self.__check_if_reference_frame_has_proper_size(analysed_frame):
                 self.__resize_reference_frame(analysed_frame)
             frame_delta = cv2.absdiff(self._reference_frame, analysed_frame)
+            cv2.imshow("Reference frame", self._reference_frame)
         frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_RGB2GRAY)
+
         threshold = cv2.threshold(frame_delta, self._parameters.delta_threshold, 255, cv2.THRESH_BINARY)[1]
         threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, None)
         threshold = cv2.dilate(threshold, None, iterations=self._parameters.dilation_iterations)
+
+        cv2.imshow("Threshold", threshold)
+        cv2.imshow("Frame delta", frame_delta)
+        # OpenCV needs it to correctly show images for some reason
+        # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
+        cv2.waitKey(1)
 
         contours = cv2.findContours(threshold.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
         # length of contours and position of needed element to read is dependent on OpenCV version

@@ -196,7 +196,7 @@ class App:
 
         ret, frame = self.video_source.get_frame()
         frames_number = self.video_source.get_frames_num()
-        self.timing_scale_value = 1  # TODO - check why
+        self.timing_scale_value = 1
 
         while ret:
             self.__analyse_frame_update_list(frame)
