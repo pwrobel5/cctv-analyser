@@ -26,6 +26,7 @@ class App:
         self.already_moving = False
         self.moving_list = [None, None]
 
+        self.__set_style()
         self.__create_frames()
         self.__fill_display_frame()
         self.__fill_control_frame()
@@ -44,6 +45,16 @@ class App:
         self.window.resizable(False, False)
 
         self.window.mainloop()
+
+    def __set_style(self):
+        self.style = ttk.Style(self.window)
+        self.style.layout("text.Horizontal.TProgressbar",
+                          [("Horizontal.Progressbar.trough",
+                            {"children": [("Horizontal.Progressbar.pbar",
+                                           {"side": "left", "sticky": "ns"})],
+                             "sticky": "nswe"}),
+                           ("Horizontal.Progressbar.label", {"sticky": ""})])
+        self.style.configure("text.Horizontal.TProgressbar", text="0 %")
 
     def __create_frames(self):
         # TODO - highlightbackorund + highlightthickness only for testing element placing, remove in the future
@@ -76,6 +87,11 @@ class App:
         self.timing_scale = tkinter.Scale(self.control_frame, command=self.move, orient=tkinter.HORIZONTAL, length=600,
                                           showvalue=0)
         self.timing_scale.pack(side=tkinter.TOP)
+
+        self.progress_bar = ttk.Progressbar(self.control_frame, orient=tkinter.HORIZONTAL,
+                                            style="text.Horizontal.TProgressbar",
+                                            length=600, mode="determinate")
+        self.progress_bar.pack(side=tkinter.BOTTOM)
 
     def __fill_analyse_frame(self):
         self.fragment_list = ttk.Treeview(self.analyse_frame, columns=["beginning", "end"], show="headings")
@@ -203,10 +219,9 @@ class App:
             ret, frame = self.video_source.get_frame()
             self.timing_scale_value += 1
 
-            if self.timing_scale_value % 100 == 0:
-                print(self.timing_scale_value)
-                print(frames_number)
-                print("Percent: ", str(100.0 * self.timing_scale_value / frames_number), "%")
+            if self.timing_scale_value % 10 == 0:
+                percent = 100.0 * self.timing_scale_value / frames_number
+                self.__set_progress_bar_value(percent)
 
         self.jump_to_video_beginning()
 
@@ -215,12 +230,19 @@ class App:
         factor = self.video_source.get_frames_num() / self._parameters.running_avg_start_frame_number
         frame_index = 0
 
-        for _ in range(0, self._parameters.running_avg_start_frame_number):
+        for i in range(0, self._parameters.running_avg_start_frame_number):
             _, frame = self.video_source.get_frame_by_index(frame_index)
             result.append(frame)
             frame_index = int(frame_index + factor)
+            self.__set_progress_bar_value(100.0 * (i + 1) / self._parameters.running_avg_start_frame_number)
 
         return result
+
+    def __set_progress_bar_value(self, value):
+        self.progress_bar["value"] = value
+        self.style.configure("text.Horizontal.TProgressbar",
+                             text="{:g} %".format(int(value)))
+        self.window.update_idletasks()
 
     def jump_to_video_beginning(self):
         self.video_source.set_frame(0)
