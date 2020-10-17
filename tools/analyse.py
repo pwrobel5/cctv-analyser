@@ -1,17 +1,17 @@
 import cv2
 import numpy as np
+import imutils
 
 
 class Analyser:
     def __init__(self, reference_frame, parameters, frames_to_average=None):
         self._parameters = parameters
-        # TODO - what does this 0 mean?
-        self._reference_frame = cv2.GaussianBlur(reference_frame, (parameters.blur_size, parameters.blur_size), 0)
-        self._running_average = Analyser.__calculate_average_frame(frames_to_average)
+        self._reference_frame = self.__preprocess_frame(reference_frame)
+        self._running_average = self.__calculate_average_frame(frames_to_average)
         self._frame_counter = 0
+        self._background_subtractor = cv2.createBackgroundSubtractorMOG2()
 
-    @staticmethod
-    def __calculate_average_frame(frames):
+    def __calculate_average_frame(self, frames):
         if not frames:
             return None
         result = np.zeros(frames[0].shape, np.float)
@@ -20,11 +20,21 @@ class Analyser:
         for frame in frames:
             result = result + frame / n_frames
 
+        result = cv2.normalize(result, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        result = self.__preprocess_frame(result)
         return result
+
+    def __preprocess_frame(self, frame):
+        #frame = imutils.resize(frame, width=200)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # TODO - what does this 0 mean?
+        frame = cv2.GaussianBlur(frame, (self._parameters.blur_size, self._parameters.blur_size), 0)
+        return frame
 
     def analyse_frame(self, frame):
         text = "No motion"
-        analysed_frame = cv2.GaussianBlur(frame, (self._parameters.blur_size, self._parameters.blur_size), 0)
+        bg_mask = self._background_subtractor.apply(frame)
+        analysed_frame = self.__preprocess_frame(frame)
         self._frame_counter += 1
 
         if self._parameters.use_running_average:
@@ -34,13 +44,13 @@ class Analyser:
             cv2.accumulateWeighted(analysed_frame, self._running_average, self._parameters.running_avg_alpha, None)
             frame_delta = cv2.subtract(self._running_average, analysed_frame, dtype=cv2.CV_32F)
             frame_delta = cv2.convertScaleAbs(frame_delta)
-            cv2.imshow("Running average", self._running_average)
+            cv2.imshow("Running average", self._running_average / 255)
         else:
             if not self.__check_if_reference_frame_has_proper_size(analysed_frame):
                 self.__resize_reference_frame(analysed_frame)
             frame_delta = cv2.absdiff(self._reference_frame, analysed_frame)
             cv2.imshow("Reference frame", self._reference_frame)
-        frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_RGB2GRAY)
+        # frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_RGB2GRAY)
 
         threshold = cv2.threshold(frame_delta, self._parameters.delta_threshold, 255, cv2.THRESH_BINARY)[1]
         threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, None)
@@ -48,6 +58,7 @@ class Analyser:
 
         cv2.imshow("Threshold", threshold)
         cv2.imshow("Frame delta", frame_delta)
+        cv2.imshow("After bg subtraction", bg_mask)
         # OpenCV needs it to correctly show images for some reason
         # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
         cv2.waitKey(1)
@@ -84,8 +95,8 @@ class Analyser:
         return frame, motion_detected
 
     def __check_if_reference_frame_has_proper_size(self, current_frame):
-        height, width, _ = current_frame.shape
-        ref_height, ref_width, _ = self._reference_frame.shape
+        height, width = current_frame.shape
+        ref_height, ref_width = self._reference_frame.shape
 
         if ref_height != height or ref_width != width:
             return False
@@ -93,8 +104,8 @@ class Analyser:
         return True
 
     def __check_if_running_avg_has_proper_size(self, current_frame):
-        height, width, _ = current_frame.shape
-        ref_height, ref_width, _ = self._running_average.shape
+        height, width = current_frame.shape
+        ref_height, ref_width = self._running_average.shape
 
         if ref_height != height or ref_width != width:
             return False

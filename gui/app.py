@@ -115,7 +115,7 @@ class App:
                 return
 
             self.__update_canvas_size_with_video()
-            self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
+            # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
             self.jump_to_video_beginning()
 
     def __update_canvas_size(self, width, height):
@@ -203,7 +203,9 @@ class App:
             ret, frame = self.video_source.get_frame()
             self.timing_scale_value += 1
 
-            if self.timing_scale_value % 10 == 0:
+            if self.timing_scale_value % 100 == 0:
+                print(self.timing_scale_value)
+                print(frames_number)
                 print("Percent: ", str(100.0 * self.timing_scale_value / frames_number), "%")
 
         self.jump_to_video_beginning()
