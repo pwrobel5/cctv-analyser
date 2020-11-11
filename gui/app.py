@@ -223,6 +223,8 @@ class App:
                 percent = 100.0 * self.timing_scale_value / frames_number
                 self.__set_progress_bar_value(percent)
 
+        Analyser.destroy_windows()
+        self.__set_progress_bar_value(100.0)
         self.jump_to_video_beginning()
 
     def __read_initial_average_frames(self):

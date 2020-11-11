@@ -1,4 +1,5 @@
 import misc.defaults as defaults
+from tools.subtractors import BgSubtractorType
 
 
 class Parameters:
@@ -12,6 +13,7 @@ class Parameters:
         self._minimal_move_area = defaults.MINIMAL_MOVE_AREA
         self._dilation_iterations = defaults.DILATION_ITERATIONS
         self._reference_frame_refresh_frequency = defaults.REFERENCE_FRAME_REFRESH_FREQUENCY
+        self._bg_subtractor = defaults.BG_SUBTRACTOR
 
         self._use_running_average = False
         self._running_avg_alpha = defaults.RUNNING_AVG_ALPHA
@@ -91,6 +93,18 @@ class Parameters:
     @reference_frame_refresh_frequency.setter
     def reference_frame_refresh_frequency(self, frequency):
         self._reference_frame_refresh_frequency = frequency
+
+    @property
+    def bg_subtractor(self):
+        return self._bg_subtractor.name
+
+    @bg_subtractor.setter
+    def bg_subtractor(self, bg_subtractor):
+        self._bg_subtractor = BgSubtractorType[bg_subtractor]
+
+    @property
+    def bg_subtractor_enum(self):
+        return self._bg_subtractor
 
     @property
     def use_running_average(self):

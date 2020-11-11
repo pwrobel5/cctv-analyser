@@ -1,4 +1,7 @@
 import tkinter
+import tkinter.ttk as ttk
+
+from tools.subtractors import BgSubtractorType
 
 
 class ParametersWindow(tkinter.Toplevel):
@@ -88,6 +91,17 @@ class ParametersWindow(tkinter.Toplevel):
         reference_frame_refresh_frequency_entry = tkinter.Entry(self._analyse_parameters_frame)
         reference_frame_refresh_frequency_entry.grid(row=5, column=1)
         self._entries_values.append((reference_frame_refresh_frequency_entry, "reference_frame_refresh_frequency"))
+
+        bg_subtractor_label = tkinter.Label(self._analyse_parameters_frame, text="Background subtractor")
+        bg_subtractor_label.grid(row=6, column=0)
+
+        # it is garbage collected, to work properly it needs to be class attribute
+        self.bg_subtractor_value_type = tkinter.StringVar()
+        bg_subtractor_combobox = ttk.Combobox(self._analyse_parameters_frame,
+                                              textvariable=self.bg_subtractor_value_type)
+        bg_subtractor_combobox["values"] = [subtractor.name for subtractor in BgSubtractorType]
+        bg_subtractor_combobox.grid(row=6, column=1)
+        self._entries_values.append((bg_subtractor_combobox, "bg_subtractor"))
 
     def __fill_running_avg_parameters_frame(self):
         running_avg_alpha_label = tkinter.Label(self._running_avg_parameters_frame, text="Alpha")
