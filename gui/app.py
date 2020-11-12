@@ -1,11 +1,11 @@
+import datetime
+import time
 import tkinter
 import tkinter.filedialog as filedialog
 import tkinter.ttk as ttk
 
 import PIL.Image
 import PIL.ImageTk
-
-import datetime
 
 from tools.analyse import Analyser
 from tools.parameters import Parameters
@@ -104,12 +104,6 @@ class App:
                                                     command=self.analyse, variable=self.analyse_checked)
         self.analyse_checkbox.pack(side=tkinter.BOTTOM)
 
-        self.running_avg_checked = tkinter.IntVar()
-        self.running_avg_checkbox = tkinter.Checkbutton(self.analyse_frame, text="Use running average",
-                                                        command=self.use_running_avg,
-                                                        variable=self.running_avg_checked)
-        self.running_avg_checkbox.pack(side=tkinter.BOTTOM)
-
         self.set_parameters_button = tkinter.Button(self.analyse_frame, text="Set analysis parameters",
                                                     command=self.open_parameters_button)
         self.set_parameters_button.pack(side=tkinter.BOTTOM)
@@ -191,16 +185,7 @@ class App:
         self.analyse_on_the_fly = bool(self.analyse_checked.get())
 
     def __initialize_analyser(self):
-        ret, reference_frame = self.video_source.get_frame_by_index(self._parameters.first_reference_frame_index)
-        if not ret:
-            print("Error with loading reference frame")
-
-        if self._parameters.use_running_average:
-            running_average_initial_frames = self.__read_initial_average_frames()
-            self.analyser = Analyser(reference_frame, self._parameters, running_average_initial_frames)
-        else:
-            self.analyser = Analyser(reference_frame, self._parameters)
-
+        self.analyser = Analyser(self._parameters)
         self.jump_to_video_beginning()
 
     def analyse_video(self):
@@ -223,22 +208,16 @@ class App:
                 percent = 100.0 * self.timing_scale_value / frames_number
                 self.__set_progress_bar_value(percent)
 
+        if self.moving_list[0] is not None:
+            self.moving_list[1] = self.timing_scale_value
+            self.mark_fragment(self.moving_list)
+
         Analyser.destroy_windows()
         self.__set_progress_bar_value(100.0)
         self.jump_to_video_beginning()
 
-    def __read_initial_average_frames(self):
-        result = []
-        factor = self.video_source.get_frames_num() / self._parameters.running_avg_start_frame_number
-        frame_index = 0
-
-        for i in range(0, self._parameters.running_avg_start_frame_number):
-            _, frame = self.video_source.get_frame_by_index(frame_index)
-            result.append(frame)
-            frame_index = int(frame_index + factor)
-            self.__set_progress_bar_value(100.0 * (i + 1) / self._parameters.running_avg_start_frame_number)
-
-        return result
+        self.moving_list = [None, None]
+        self.already_moving = False
 
     def __set_progress_bar_value(self, value):
         self.progress_bar["value"] = value
@@ -278,20 +257,19 @@ class App:
                     seconds=int(self.timing_scale_value / self.video_source.get_fps()))).time()))
             self.window.after(self.delay, self.update)
 
-    def use_running_avg(self):
-        self._parameters.use_running_average = bool(self.running_avg_checked.get())
-
     def __analyse_frame_update_list(self, frame):
-        analysed_frame, motion_detected = self.analyser.analyse_frame(frame)
+        analysed_frame, motion_detected, return_frame_index = self.analyser.analyse_frame(frame)
         if not motion_detected and self.already_moving:
-            print("Detected end: ", str(self.timing_scale_value))
-            self.moving_list[1] = self.timing_scale_value / self.video_source.get_fps()
-            self.fragment_list.insert('', 'end', values=self.moving_list)
+            self.moving_list[1] = return_frame_index / self.video_source.get_fps()
+            self.mark_fragment(self.moving_list)
             self.moving_list = [None, None]
             self.already_moving = False
         elif motion_detected and not self.already_moving:
-            print("Detected begin: ", str(self.timing_scale_value))
-            self.moving_list[0] = self.timing_scale_value / self.video_source.get_fps()
+            self.moving_list[0] = return_frame_index / self.video_source.get_fps()
             self.already_moving = True
 
         return analysed_frame
+
+    def mark_fragment(self, moving_list):
+        formatted = [time.strftime("%H:%M:%S", time.gmtime(element)) for element in moving_list]
+        self.fragment_list.insert("", "end", values=formatted)

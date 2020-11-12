@@ -1,81 +1,103 @@
 import cv2
-import numpy as np
+import pybgs
+
+from .subtractors import BgSubtractorType
+
+SUBTRACTORS = {
+    BgSubtractorType.KNN: cv2.createBackgroundSubtractorKNN,
+    BgSubtractorType.ViBe: pybgs.ViBe,
+    BgSubtractorType.SigmaDelta: pybgs.SigmaDelta,
+    BgSubtractorType.AdaptiveSegmenter: pybgs.PixelBasedAdaptiveSegmenter
+}
+
+NO_MOVEMENT_INDEX = -1
 
 
 class Analyser:
-    def __init__(self, reference_frame, parameters, frames_to_average=None, bg_subtractor="KNN"):
+    def __init__(self, parameters):
         self._parameters = parameters
-        self._reference_frame = self.__preprocess_frame(reference_frame)
-        self._running_average = self.__calculate_average_frame(frames_to_average)
         self._frame_counter = 0
-        if bg_subtractor == "KNN":
-            self._background_subtractor = cv2.createBackgroundSubtractorKNN(detectShadows=False)
+        self._background_subtractor = self.__initialize_bg_subtractor()
+
+        self._movement_begin = NO_MOVEMENT_INDEX
+        self._movement_end = NO_MOVEMENT_INDEX
+        self._moving_frames = 0
+        self._breaking_frames = 0
+        self._motion_detected = False
+
+    def __initialize_bg_subtractor(self):
+        if self._parameters.begin_with_sigmadelta:
+            return pybgs.SigmaDelta()
         else:
-            self._background_subtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=False)
+            return self.__create_bg_subtractor()
 
-    def __calculate_average_frame(self, frames):
-        if not frames:
-            return None
-        result = np.zeros(frames[0].shape, np.float)
-        n_frames = len(frames)
-
-        for frame in frames:
-            result = result + frame / n_frames
-
-        result = cv2.normalize(result, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        result = self.__preprocess_frame(result)
-        return result
-
-    def __preprocess_frame(self, frame):
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # TODO - what does this 0 mean?
-        frame = cv2.GaussianBlur(frame, (self._parameters.blur_size, self._parameters.blur_size), 0)
-        return frame
+    def __create_bg_subtractor(self):
+        bg_subtractor = self._parameters.bg_subtractor_enum
+        subtractor_initializer = SUBTRACTORS.get(bg_subtractor, cv2.BackgroundSubtractorKNN)
+        return subtractor_initializer()
 
     def analyse_frame(self, frame):
-        text = "No motion"
+        return_frame_index = None
+        self._frame_counter += 1
+        self.__switch_subtractors_if_needed()
+        bg_mask = self.__get_bg_mask(frame)
+
+        if self._parameters.use_threshold:
+            bg_threshold = self.__get_thresholded_mask(bg_mask)
+        else:
+            bg_threshold = bg_mask
+
+        contours_bg = self.__get_contours(bg_threshold)
+        cv2.imshow("After bg subtraction", bg_threshold)
+
+        found_contours = len(contours_bg)
+        contours_bg = list(filter(lambda cnt: cv2.contourArea(cnt) >= self._parameters.minimal_move_area, contours_bg))
+
+        if len(contours_bg) > 0 and found_contours < self._parameters.max_contours:
+            self.__set_motion_counters()
+            self.__mark_contours(contours_bg, frame)
+
+            if self._moving_frames >= self._parameters.minimal_move_frames:
+                self._motion_detected = True
+                return_frame_index = self._movement_begin
+        else:
+            self.__set_break_counters()
+            
+            if self._breaking_frames >= self._parameters.max_break_length:
+                return_frame_index = self._movement_end
+                self.__unmark_motion()
+
+        status = "Motion detected" if self._motion_detected else "No motion"
+        cv2.putText(frame, "Status: {}".format(status), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 255), 2)
+
+        cv2.imshow("Frame", frame)
+        # OpenCV needs it to correctly show images for some reason
+        # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
+        cv2.waitKey(1)
+
+        return frame, self._motion_detected, return_frame_index
+
+    def __switch_subtractors_if_needed(self):
+        if self._parameters.begin_with_sigmadelta and self._frame_counter == self._parameters.sigmadelta_frames:
+            self._background_subtractor = self.__create_bg_subtractor()
+            print("Switching algorithm...")
+
+    def __get_bg_mask(self, frame):
         frame_copy = frame.copy()
         frame_copy = cv2.GaussianBlur(frame_copy, (self._parameters.blur_size, self._parameters.blur_size), 0)
-        bg_mask = self._background_subtractor.apply(frame_copy)
-        # cv2.imshow(frame, "aa")
-        analysed_frame = self.__preprocess_frame(frame)
-        self._frame_counter += 1
+        return self._background_subtractor.apply(frame_copy)
 
-        if self._parameters.use_running_average:
-            if not self.__check_if_running_avg_has_proper_size(analysed_frame):
-                self.__resize_running_average(analysed_frame)
-
-            cv2.accumulateWeighted(analysed_frame, self._running_average, self._parameters.running_avg_alpha, None)
-            frame_delta = cv2.subtract(self._running_average, analysed_frame, dtype=cv2.CV_32F)
-            frame_delta = cv2.convertScaleAbs(frame_delta)
-            cv2.imshow("Running average", self._running_average / 255)
-        else:
-            if not self.__check_if_reference_frame_has_proper_size(analysed_frame):
-                self.__resize_reference_frame(analysed_frame)
-            frame_delta = cv2.absdiff(self._reference_frame, analysed_frame)
-            cv2.imshow("Reference frame", self._reference_frame)
-        # frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_RGB2GRAY)
-
-        threshold = cv2.threshold(frame_delta, self._parameters.delta_threshold, 255, cv2.THRESH_BINARY)[1]
-        threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, None)
-        threshold = cv2.dilate(threshold, None, iterations=self._parameters.dilation_iterations)
-
-        cv2.imshow("Threshold", threshold)
-        cv2.imshow("Frame delta", frame_delta)
-
+    def __get_thresholded_mask(self, bg_mask):
         bg_threshold = cv2.threshold(bg_mask, self._parameters.delta_threshold, 255, cv2.THRESH_BINARY)[1]
+        bg_threshold = cv2.morphologyEx(bg_threshold, cv2.MORPH_OPEN, None)
+        bg_threshold = cv2.dilate(bg_threshold, None, iterations=self._parameters.dilation_iterations)
+        return bg_threshold
 
-        contours = cv2.findContours(threshold.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    @staticmethod
+    def __get_contours(bg_threshold):
         contours_bg = cv2.findContours(bg_threshold.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
         # length of contours and position of needed element to read is dependent on OpenCV version
-        if len(contours) == 2:
-            contours = contours[0]
-        elif len(contours) == 3:
-            contours = contours[1]
-        else:
-            print("Error")
-            return None
-
         if len(contours_bg) == 2:
             contours_bg = contours_bg[0]
         elif len(contours_bg) == 3:
@@ -84,83 +106,32 @@ class Analyser:
             print("Error")
             return None
 
-        """
-        bg_text = "No motion"
+        return contours_bg
 
-       for contour_bg in contours_bg:
-            if cv2.contourArea(contour_bg) < self._parameters.minimal_move_area:
-                continue
+    def __set_motion_counters(self):
+        if self._movement_begin == NO_MOVEMENT_INDEX:
+            self._movement_begin = self._frame_counter
 
-            (x, y, w, h) = cv2.boundingRect(contour_bg)
-            cv2.rectangle(bg_mask, (x,y), (x + w, y + h), (0, 255, 0), 2)
-            bg_text = "Motion detected"
+        self._movement_end = self._frame_counter
+        self._moving_frames += 1
 
-        cv2.putText(bg_mask, "Status: {}".format(bg_text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0, 0, 255), 2)"
-        """
+    @staticmethod
+    def __mark_contours(contours_bg, frame):
+        for contour in contours_bg:
+            (x, y, w, h) = cv2.boundingRect(contour)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        cv2.imshow("After bg subtraction", bg_threshold)
-        # OpenCV needs it to correctly show images for some reason
-        # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
-        #cv2.waitKey(1)
+    def __set_break_counters(self):
+        if self._movement_begin != NO_MOVEMENT_INDEX:
+            self._breaking_frames += 1
 
-        motion_detected = False
-        found_contours = len(contours_bg)
-        contours_bg = list(filter(lambda cnt: cv2.contourArea(cnt) >= self._parameters.minimal_move_area, contours_bg))
+    def __unmark_motion(self):
+        self._motion_detected = False
+        self._movement_begin = NO_MOVEMENT_INDEX
+        self._movement_end = NO_MOVEMENT_INDEX
+        self._moving_frames = 0
+        self._breaking_frames = 0
 
-        if found_contours < 500:
-            for contour in contours_bg:
-                (x, y, w, h) = cv2.boundingRect(contour)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                text = "Motion detected"
-                motion_detected = True
-
-        cv2.putText(frame, "Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0, 0, 255), 2)
-        if motion_detected:
-            print("Contours: ", found_contours)
-
-        if not motion_detected and self._frame_counter >= self._parameters.reference_frame_refresh_frequency:
-            self._reference_frame = analysed_frame
-            self._frame_counter = 0
-            print("Changed reference frame")
-
-        cv2.imshow("Frame", frame)
-        cv2.waitKey(1)
-
-        return frame, motion_detected
-
-    def __check_if_reference_frame_has_proper_size(self, current_frame):
-        height, width = current_frame.shape
-        ref_height, ref_width = self._reference_frame.shape
-
-        if ref_height != height or ref_width != width:
-            return False
-
-        return True
-
-    def __check_if_running_avg_has_proper_size(self, current_frame):
-        height, width = current_frame.shape
-        ref_height, ref_width = self._running_average.shape
-
-        if ref_height != height or ref_width != width:
-            return False
-
-        return True
-
-    def __resize_reference_frame(self, current_frame):
-        width, height, _ = current_frame.shape
-        self._reference_frame = cv2.resize(self._reference_frame, (height, width))
-
-    def __resize_running_average(self, current_frame):
-        width, height, _ = current_frame.shape
-        self._running_average = cv2.resize(self._running_average, (height, width))
-
-    @property
-    def reference_frame(self):
-        return self._reference_frame
-
-    @reference_frame.setter
-    def reference_frame(self, reference_frame):
-        self._reference_frame = cv2.GaussianBlur(reference_frame,
-                                                 (self._parameters.blur_size, self._parameters.blur_size), 0)
+    @staticmethod
+    def destroy_windows():
+        cv2.destroyAllWindows()

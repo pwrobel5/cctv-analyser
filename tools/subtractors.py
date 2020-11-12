@@ -2,8 +2,7 @@ import enum
 
 
 class BgSubtractorType(enum.Enum):
-    MOG2 = 0
-    KNN = 1
-    ViBe = 2
-    SigmaDelta = 3
-    AdaptiveSegmenter = 4
+    KNN = 0
+    ViBe = 1
+    SigmaDelta = 2
+    AdaptiveSegmenter = 3
