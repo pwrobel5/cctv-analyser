@@ -3,3 +3,4 @@ numpy==1.18.3
 opencv-python==4.2.0.34
 Pillow==7.1.2
 pyttk==0.3.2
+pybgs~=3.0.0.post2

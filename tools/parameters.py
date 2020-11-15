@@ -1,4 +1,5 @@
 import misc.defaults as defaults
+from tools.subtractors import BgSubtractorType
 
 
 class Parameters:
@@ -6,16 +7,18 @@ class Parameters:
         self._max_video_width = defaults.MAX_VIDEO_WIDTH
         self._max_video_height = defaults.MAX_VIDEO_HEIGHT
 
-        self._first_reference_frame_index = defaults.FIRST_REFERENCE_FRAME_INDEX
         self._blur_size = defaults.BLUR_SIZE
         self._delta_threshold = defaults.DELTA_THRESHOLD
-        self._minimal_move_area = defaults.MINIMAL_MOVE_AREA
         self._dilation_iterations = defaults.DILATION_ITERATIONS
-        self._reference_frame_refresh_frequency = defaults.REFERENCE_FRAME_REFRESH_FREQUENCY
+        self._minimal_move_area = defaults.MINIMAL_MOVE_AREA
+        self._bg_subtractor = defaults.BG_SUBTRACTOR
+        self._begin_with_sigmadelta = True
+        self._sigmadelta_frames = defaults.SIGMADELTA_FRAMES
 
-        self._use_running_average = False
-        self._running_avg_alpha = defaults.RUNNING_AVG_ALPHA
-        self._running_avg_start_frame_number = defaults.RUNNING_AVG_START_FRAME_NUMBER
+        self._use_threshold = True
+        self._max_contours = defaults.MAX_CONTOURS
+        self._minimal_move_frames = defaults.MINIMAL_MOVE_FRAMES
+        self._max_break_length = defaults.MAX_BREAK_LENGTH
 
         self._callbacks = {property_name: [] for property_name, _ in vars(self).items()}
 
@@ -45,14 +48,6 @@ class Parameters:
         self.__run_callbacks("_max_video_height")
 
     @property
-    def first_reference_frame_index(self):
-        return self._first_reference_frame_index
-
-    @first_reference_frame_index.setter
-    def first_reference_frame_index(self, index):
-        self._first_reference_frame_index = index
-
-    @property
     def blur_size(self):
         return self._blur_size
 
@@ -69,14 +64,6 @@ class Parameters:
         self._delta_threshold = delta_threshold
 
     @property
-    def minimal_move_area(self):
-        return self._minimal_move_area
-
-    @minimal_move_area.setter
-    def minimal_move_area(self, minimal_move_area):
-        self._minimal_move_area = minimal_move_area
-
-    @property
     def dilation_iterations(self):
         return self._dilation_iterations
 
@@ -85,33 +72,69 @@ class Parameters:
         self._dilation_iterations = dilation_iterations
 
     @property
-    def reference_frame_refresh_frequency(self):
-        return self._reference_frame_refresh_frequency
+    def minimal_move_area(self):
+        return self._minimal_move_area
 
-    @reference_frame_refresh_frequency.setter
-    def reference_frame_refresh_frequency(self, frequency):
-        self._reference_frame_refresh_frequency = frequency
-
-    @property
-    def use_running_average(self):
-        return self._use_running_average
-
-    @use_running_average.setter
-    def use_running_average(self, use_running_average):
-        self._use_running_average = use_running_average
+    @minimal_move_area.setter
+    def minimal_move_area(self, minimal_move_area):
+        self._minimal_move_area = minimal_move_area
 
     @property
-    def running_avg_alpha(self):
-        return self._running_avg_alpha
+    def bg_subtractor(self):
+        return self._bg_subtractor.name
 
-    @running_avg_alpha.setter
-    def running_avg_alpha(self, running_avg_alpha):
-        self._running_avg_alpha = running_avg_alpha
+    @bg_subtractor.setter
+    def bg_subtractor(self, bg_subtractor):
+        self._bg_subtractor = BgSubtractorType[bg_subtractor]
 
     @property
-    def running_avg_start_frame_number(self):
-        return self._running_avg_start_frame_number
+    def bg_subtractor_enum(self):
+        return self._bg_subtractor
 
-    @running_avg_start_frame_number.setter
-    def running_avg_start_frame_number(self, number):
-        self._running_avg_start_frame_number = number
+    @property
+    def begin_with_sigmadelta(self):
+        return self._begin_with_sigmadelta
+
+    @begin_with_sigmadelta.setter
+    def begin_with_sigmadelta(self, begin_with_sigmadelta):
+        self._begin_with_sigmadelta = begin_with_sigmadelta
+
+    @property
+    def sigmadelta_frames(self):
+        return self._sigmadelta_frames
+
+    @sigmadelta_frames.setter
+    def sigmadelta_frames(self, sigmadelta_frames):
+        self._sigmadelta_frames = sigmadelta_frames
+
+    @property
+    def use_threshold(self):
+        return self._use_threshold
+
+    @use_threshold.setter
+    def use_threshold(self, use_threshold):
+        self._use_threshold = use_threshold
+
+    @property
+    def max_contours(self):
+        return self._max_contours
+
+    @max_contours.setter
+    def max_contours(self, max_contours):
+        self._max_contours = max_contours
+
+    @property
+    def minimal_move_frames(self):
+        return self._minimal_move_frames
+
+    @minimal_move_frames.setter
+    def minimal_move_frames(self, minimal_move_frames):
+        self._minimal_move_frames = minimal_move_frames
+
+    @property
+    def max_break_length(self):
+        return self._max_break_length
+
+    @max_break_length.setter
+    def max_break_length(self, max_break_length):
+        self._max_break_length = max_break_length
