@@ -1,0 +1,5 @@
+# Parameters
+
+CONFIDENCE = 0.5
+SCORE_THRESHOLD = 0.5
+IOU_THRESHOLD = 0.5
