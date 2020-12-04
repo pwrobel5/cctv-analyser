@@ -8,6 +8,7 @@ import PIL.Image
 import PIL.ImageTk
 
 from tools.analyse import Analyser
+from tools.object_detection.object_detector_graph import ObjectDetectorGraph
 from tools.parameters import Parameters
 from .parameters_window import ParametersWindow
 from .video_capture import VideoCapture
@@ -36,6 +37,7 @@ class App:
         self.delay = 15
         self.update()
         self.analyser = None
+        self.object_detector = ObjectDetectorGraph()
 
         self._parameters = Parameters()
         self._parameters.add_callback("_max_video_width", self.__update_canvas_size_without_video)
@@ -185,7 +187,7 @@ class App:
         self.analyse_on_the_fly = bool(self.analyse_checked.get())
 
     def __initialize_analyser(self):
-        self.analyser = Analyser(self._parameters)
+        self.analyser = Analyser(self._parameters, self.object_detector)
         self.jump_to_video_beginning()
 
     def analyse_video(self):
