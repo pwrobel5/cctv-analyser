@@ -1,4 +1,5 @@
 import datetime
+import threading
 import time
 import tkinter
 import tkinter.filedialog as filedialog
@@ -26,6 +27,8 @@ class App:
         self.analyse_on_the_fly = False
         self.already_moving = False
         self.moving_list = [None, None]
+        self.run_analysis_thread = False
+        self.analysis_thread = None
 
         self.__set_style()
         self.__create_frames()
@@ -115,8 +118,12 @@ class App:
         self.undo_detection_button.pack(side=tkinter.BOTTOM)
 
         self.analyse_video_button = tkinter.Button(self.analyse_frame, text="Analyse video",
-                                                   command=self.analyse_video)
+                                                   command=self.start_analysis)
         self.analyse_video_button.pack(side=tkinter.BOTTOM)
+
+        self.stop_analyse_video_button = tkinter.Button(self.analyse_frame, text="Stop analysis",
+                                                        state=tkinter.DISABLED, command=self.stop_analysis)
+        self.stop_analyse_video_button.pack(side=tkinter.BOTTOM)
 
     def browse(self):
         path = filedialog.askopenfilename()
@@ -186,6 +193,36 @@ class App:
 
         self.analyse_on_the_fly = bool(self.analyse_checked.get())
 
+    def __switch_buttons(self, stop_analyse_state, others_state):
+        self.stop_analyse_video_button["state"] = stop_analyse_state
+        self.analyse_video_button["state"] = others_state
+        self.set_parameters_button["state"] = others_state
+
+        self.browse_button["state"] = others_state
+        self.play_button["state"] = others_state
+        self.stop_button["state"] = others_state
+
+    def __disable_buttons(self):
+        self.__switch_buttons(tkinter.NORMAL, tkinter.DISABLED)
+
+    def __enable_buttons(self):
+        self.__switch_buttons(tkinter.DISABLED, tkinter.NORMAL)
+
+    def start_analysis(self):
+        self.__disable_buttons()
+
+        self.run_analysis_thread = True
+        self.analysis_thread = threading.Thread(target=self.analyse_video)
+        self.analysis_thread.start()
+
+    def stop_analysis(self):
+        if self.analysis_thread is not None:
+            self.run_analysis_thread = False
+            self.analysis_thread.join()
+            self.analyser.wait_for_detection()
+            self.analysis_thread = None
+            self.__end_analysis()
+
     def __initialize_analyser(self):
         self.analyser = Analyser(self._parameters, self.object_detector)
         self.jump_to_video_beginning()
@@ -201,7 +238,7 @@ class App:
         frames_number = self.video_source.get_frames_num()
         self.timing_scale_value = 1
 
-        while ret:
+        while ret and self.run_analysis_thread:
             self.__analyse_frame_update_list(frame)
             ret, frame = self.video_source.get_frame()
             self.timing_scale_value += 1
@@ -210,16 +247,23 @@ class App:
                 percent = 100.0 * self.timing_scale_value / frames_number
                 self.__set_progress_bar_value(percent)
 
+        if self.run_analysis_thread:
+            print("Waiting for object detection...")
+            self.analyser.wait_for_detection()
+            self.__set_progress_bar_value(100.0)
+            self.__end_analysis()
+
+    def __end_analysis(self):
         if self.moving_list[0] is not None:
             self.moving_list[1] = self.timing_scale_value
             self.mark_fragment(self.moving_list)
 
         Analyser.destroy_windows()
-        self.__set_progress_bar_value(100.0)
         self.jump_to_video_beginning()
 
         self.moving_list = [None, None]
         self.already_moving = False
+        self.__enable_buttons()
 
     def __set_progress_bar_value(self, value):
         self.progress_bar["value"] = value

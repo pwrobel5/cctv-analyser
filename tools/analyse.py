@@ -1,10 +1,9 @@
-import cv2
-import pybgs
 from threading import Thread
 
+import cv2
+import pybgs
+
 from .subtractors import BgSubtractorType
-from tools.object_detection import object_detector_graph
-from tools.object_detection import object_detector
 
 SUBTRACTORS = {
     BgSubtractorType.KNN: cv2.createBackgroundSubtractorKNN,
@@ -29,6 +28,7 @@ class Analyser:
         self._motion_detected = False
         self._object_detector = detector
         self._frames_to_detect = []
+        self._detection_threads = []
 
     def __initialize_bg_subtractor(self):
         if self._parameters.begin_with_sigmadelta:
@@ -67,28 +67,25 @@ class Analyser:
                 return_frame_index = self._movement_begin
         else:
             self.__set_break_counters()
-            
+
             if self._breaking_frames >= self._parameters.max_break_length:
                 print("STOP")
                 return_frame_index = self._movement_end
                 self.__unmark_motion()
                 t = Thread(target=self._object_detector.detect_objects, args=(self._frames_to_detect,))
                 t.start()
+                self._detection_threads.append(t)
                 self._frames_to_detect = []
 
         if self._motion_detected and self._moving_frames > self._parameters.max_break_length and self._moving_frames % 30 == 0:
             self._frames_to_detect.append(frame)
             print("ADD")
 
-
-
         status = "Motion detected" if self._motion_detected else "No motion"
         cv2.putText(frame, "Status: {}".format(status), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 255), 2)
 
         cv2.imshow("Frame", frame)
-
-
 
         # OpenCV needs it to correctly show images for some reason
         # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
@@ -153,3 +150,7 @@ class Analyser:
     @staticmethod
     def destroy_windows():
         cv2.destroyAllWindows()
+
+    def wait_for_detection(self):
+        for thread in self._detection_threads:
+            thread.join()
