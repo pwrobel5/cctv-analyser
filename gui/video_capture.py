@@ -24,6 +24,9 @@ class VideoCapture:
 
     # Release the video source when the object is destroyed
     def __del__(self):
+        self.release_video()
+
+    def release_video(self):
         if self.vid.isOpened():
             self.vid.release()
 

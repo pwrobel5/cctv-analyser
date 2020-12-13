@@ -3,6 +3,8 @@ import threading
 import time
 import tkinter
 import tkinter.filedialog as filedialog
+import tkinter.messagebox as messagebox
+import tkinter.simpledialog as simpledialog
 import tkinter.ttk as ttk
 
 import PIL.Image
@@ -30,6 +32,7 @@ class App:
         self.moving_list = [None, None]
         self.run_analysis_thread = False
         self.analysis_thread = None
+        self.camera_used = False
 
         self.__set_style()
         self.__create_frames()
@@ -78,6 +81,12 @@ class App:
         self.canvas.pack()
 
     def __fill_control_frame(self):
+        self.use_camera_button_var = tkinter.StringVar()
+        self.use_camera_button_var.set("Capture from camera")
+        self.use_camera_button = tkinter.Button(self.control_frame, textvariable=self.use_camera_button_var,
+                                                command=self.use_camera)
+        self.use_camera_button.pack(side=tkinter.RIGHT)
+
         self.browse_button = tkinter.Button(self.control_frame, text="Browse video file", command=self.browse)
         self.browse_button.pack(side=tkinter.RIGHT)
 
@@ -126,17 +135,38 @@ class App:
                                                         state=tkinter.DISABLED, command=self.stop_analysis)
         self.stop_analyse_video_button.pack(side=tkinter.BOTTOM)
 
+    def use_camera(self):
+        if self.camera_used:
+            self.stop()
+            self.video_source.release_video()
+            self.camera_used = False
+            self.use_camera_button_var.set("Capture from camera")
+        else:
+            device_index = simpledialog.askinteger("Device index", "Give device index:",
+                                                   minvalue=0, maxvalue=100, initialvalue=0)
+            if device_index is None:
+                return
+
+            try:
+                self.video_source = VideoCapture(device_index, self._parameters, self.__update_canvas_size_with_video)
+                self.camera_used = True
+                self.use_camera_button_var.set("Stop camera capture")
+                self.play()
+            except ValueError as e:
+                messagebox.showerror("Error", e)
+            except TypeError:
+                messagebox.showerror("Error", "Incorrect device index")
+
     def browse(self):
         path = filedialog.askopenfilename()
         if path:
             try:
                 self.video_source = VideoCapture(path, self._parameters, self.__update_canvas_size_with_video)
-            except ValueError:
-                return
-
-            self.__update_canvas_size_with_video()
-            # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
-            self.jump_to_video_beginning()
+                self.__update_canvas_size_with_video()
+                # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
+                self.jump_to_video_beginning()
+            except ValueError as e:
+                messagebox.showerror("Error", e)
 
     def __update_canvas_size(self, width, height):
         self.canvas.config(width=width, height=height)
