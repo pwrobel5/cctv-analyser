@@ -1,6 +1,8 @@
 import cv2
+#import pybgs
 import pybgs
 from threading import Thread
+
 
 from .subtractors import BgSubtractorType
 from tools.object_detection import object_detector_graph
@@ -29,6 +31,14 @@ class Analyser:
         self._motion_detected = False
         self._object_detector = detector
         self._frames_to_detect = []
+    #     self.shortcut_video_path = "./output.avi"
+    #     self.writer = None
+    #     self.__initialize_video_writer()
+    #
+    # def __initialize_video_writer(self):
+    #     fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+    #     self.writer = cv2.VideoWriter(self.shortcut_video_path, fourcc, 30,
+    #                              (480, 480), True)
 
     def __initialize_bg_subtractor(self):
         if self._parameters.begin_with_sigmadelta:
@@ -80,7 +90,8 @@ class Analyser:
             self._frames_to_detect.append(frame)
             print("ADD")
 
-
+        # if self._motion_detected:
+        #     self.writer.write(frame)
 
         status = "Motion detected" if self._motion_detected else "No motion"
         cv2.putText(frame, "Status: {}".format(status), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
