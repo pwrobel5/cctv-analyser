@@ -77,7 +77,8 @@ class Analyser:
                 self._detection_threads.append(t)
                 self._frames_to_detect = []
 
-        if self._motion_detected and self._moving_frames > self._parameters.max_break_length and self._moving_frames % 30 == 0:
+        if self._motion_detected and self._moving_frames > self._parameters.max_break_length and \
+                self._moving_frames % self._parameters.object_detection_interval == 0:
             self._frames_to_detect.append(frame)
             print("ADD")
 

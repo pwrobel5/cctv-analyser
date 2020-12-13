@@ -167,9 +167,19 @@ class ParametersWindow(tkinter.Toplevel):
         max_break_length_label = tkinter.Label(self._analyse_parameters_frame, text="Max break length")
         max_break_length_label.grid(row=current_row, column=0)
 
-        max_break_length_entry = tkinter.Entry(self._analyse_parameters_frame, text="Max break length")
+        max_break_length_entry = tkinter.Entry(self._analyse_parameters_frame)
         max_break_length_entry.grid(row=current_row, column=1)
         self._entries_values.append((max_break_length_entry, "max_break_length"))
+        current_row += 1
+
+        object_detection_interval_label = tkinter.Label(self._analyse_parameters_frame,
+                                                        text="Object detection interval")
+        object_detection_interval_label.grid(row=current_row, column=0)
+
+        object_detection_interval_entry = tkinter.Entry(self._analyse_parameters_frame)
+        object_detection_interval_entry.grid(row=current_row, column=1)
+        self._entries_values.append((object_detection_interval_entry, "object_detection_interval"))
+        current_row += 1
 
     def __fill_buttons_frame(self):
         current_row = 0

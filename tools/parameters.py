@@ -20,6 +20,8 @@ class Parameters:
         self._minimal_move_frames = defaults.MINIMAL_MOVE_FRAMES
         self._max_break_length = defaults.MAX_BREAK_LENGTH
 
+        self._object_detection_interval = defaults.OBJECT_DETECTION_INTERVAL
+
         self._callbacks = {property_name: [] for property_name, _ in vars(self).items()}
 
     def add_callback(self, property_name, callback):
@@ -138,3 +140,11 @@ class Parameters:
     @max_break_length.setter
     def max_break_length(self, max_break_length):
         self._max_break_length = max_break_length
+
+    @property
+    def object_detection_interval(self):
+        return self._object_detection_interval
+
+    @object_detection_interval.setter
+    def object_detection_interval(self, interval):
+        self._object_detection_interval = interval
