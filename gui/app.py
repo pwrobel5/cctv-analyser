@@ -8,6 +8,7 @@ import tkinter.ttk as ttk
 import PIL.Image
 import PIL.ImageTk
 
+import misc.defaults as defaults
 from tools.analyse import Analyser
 from tools.object_detection.object_detector_graph import ObjectDetectorGraph
 from tools.parameters import Parameters
@@ -62,7 +63,6 @@ class App:
         self.style.configure("text.Horizontal.TProgressbar", text="0 %")
 
     def __create_frames(self):
-        # TODO - highlightbackorund + highlightthickness only for testing element placing, remove in the future
         self.display_frame = tkinter.Frame(self.window, highlightbackground="black", highlightthickness=1)
         self.display_frame.grid(row=0, column=0)
 
@@ -73,7 +73,8 @@ class App:
         self.control_frame.grid(row=1, columnspan=2)
 
     def __fill_display_frame(self):
-        self.canvas = tkinter.Canvas(self.display_frame, width=300, height=300)
+        self.canvas = tkinter.Canvas(self.display_frame, width=defaults.MAX_VIDEO_WIDTH,
+                                     height=defaults.MAX_VIDEO_HEIGHT)
         self.canvas.pack()
 
     def __fill_control_frame(self):
