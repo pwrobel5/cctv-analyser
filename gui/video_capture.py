@@ -4,7 +4,7 @@ import cv2
 
 
 class VideoCapture:
-    def __init__(self, video_source, parameters, size_change_callback):
+    def __init__(self, video_source, parameters, size_change_callback=None):
         self.vid = cv2.VideoCapture(video_source)
         if not self.vid.isOpened():
             tkinter.messagebox.showerror(title="Error", message="Unable to open video source " + video_source)
@@ -39,7 +39,8 @@ class VideoCapture:
     def __update_size(self):
         self.width = min(self.source_width, self.parameters.max_video_width)
         self.height = min(self.source_height, self.parameters.max_video_height)
-        self.size_change_callback()
+        if self.size_change_callback is not None:
+            self.size_change_callback()
 
     def get_frame(self):
         if self.vid.isOpened():

@@ -16,7 +16,7 @@ NO_MOVEMENT_INDEX = -1
 
 
 class Analyser:
-    def __init__(self, parameters, detector):
+    def __init__(self, parameters, detector, show_preview=True):
         self._parameters = parameters
         self._frame_counter = 0
         self._background_subtractor = self.__initialize_bg_subtractor()
@@ -29,6 +29,8 @@ class Analyser:
         self._object_detector = detector
         self._frames_to_detect = []
         self._detection_threads = []
+
+        self._show_preview = show_preview
 
     def __initialize_bg_subtractor(self):
         if self._parameters.begin_with_sigmadelta:
@@ -53,8 +55,6 @@ class Analyser:
             bg_threshold = bg_mask
 
         contours_bg = self.__get_contours(bg_threshold)
-        cv2.imshow("After bg subtraction", bg_threshold)
-
         found_contours = len(contours_bg)
         contours_bg = list(filter(lambda cnt: cv2.contourArea(cnt) >= self._parameters.minimal_move_area, contours_bg))
 
@@ -86,11 +86,13 @@ class Analyser:
         cv2.putText(frame, "Status: {}".format(status), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 255), 2)
 
-        cv2.imshow("Frame", frame)
+        if self._show_preview:
+            cv2.imshow("After bg subtraction", bg_threshold)
+            cv2.imshow("Frame", frame)
 
-        # OpenCV needs it to correctly show images for some reason
-        # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
-        cv2.waitKey(1)
+            # OpenCV needs it to correctly show images for some reason
+            # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
+            cv2.waitKey(1)
 
         return frame, self._motion_detected, return_frame_index
 
