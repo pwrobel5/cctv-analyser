@@ -6,12 +6,14 @@ import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
 import tkinter.simpledialog as simpledialog
 import tkinter.ttk as ttk
+import cv2
 
 import PIL.Image
 import PIL.ImageTk
 
 import misc.defaults as defaults
 from tools.analyse import Analyser
+from tools.VideoWriter import VideoWriter
 from tools.object_detection.object_detector_graph import ObjectDetectorGraph
 from tools.parameters import Parameters
 from .parameters_window import ParametersWindow
@@ -23,6 +25,7 @@ class App:
         self.window = window
         self.window.title(window_title)
 
+        self.path = None
         self.video_source = None
         self.current_frame = None
         self.photo = None
@@ -30,9 +33,13 @@ class App:
         self.analyse_on_the_fly = False
         self.already_moving = False
         self.moving_list = [None, None]
+
         self.run_analysis_thread = False
         self.analysis_thread = None
         self.camera_used = False
+
+        self.moving_list_frames = []
+        self.motion_index = 0
 
         self.__set_style()
         self.__create_frames()
@@ -44,6 +51,7 @@ class App:
         self.delay = 15
         self.update()
         self.analyser = None
+        self.video_writer = None
         self.object_detector = ObjectDetectorGraph()
 
         self._parameters = Parameters()
@@ -134,6 +142,10 @@ class App:
         self.stop_analyse_video_button = tkinter.Button(self.analyse_frame, text="Stop analysis",
                                                         state=tkinter.DISABLED, command=self.stop_analysis)
         self.stop_analyse_video_button.pack(side=tkinter.BOTTOM)
+    
+        self.save_video_button = tkinter.Button(self.analyse_frame, text="Save shortcut video",
+                                                   command=self.save_shortcut)
+        self.save_video_button.pack(side=tkinter.BOTTOM)
 
     def use_camera(self):
         if self.camera_used:
@@ -158,10 +170,10 @@ class App:
                 messagebox.showerror("Error", "Incorrect device index")
 
     def browse(self):
-        path = filedialog.askopenfilename()
-        if path:
+        self.path = filedialog.askopenfilename()
+        if self.path:
             try:
-                self.video_source = VideoCapture(path, self._parameters, self.__update_canvas_size_with_video)
+                self.video_source = VideoCapture(self.path, self._parameters, self.__update_canvas_size_with_video)
                 self.__update_canvas_size_with_video()
                 # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
                 self.jump_to_video_beginning()
@@ -199,6 +211,8 @@ class App:
 
     def stop(self):
         self.play_video = False
+        for i in self.moving_list_frames:
+            print(i)
 
     def move(self, val):
         self.video_source.set_frame(int(val))
@@ -216,7 +230,24 @@ class App:
             return
 
         for selected_fragment in selection_list:
+            del(self.moving_list_frames[self.fragment_list.index(selected_fragment)])
             self.fragment_list.delete(selected_fragment)
+
+    def save_shortcut(self):
+        if self.analyser is None:
+            return
+        if self.video_writer is None:
+            print(self.video_source.width)
+            self.video_writer = VideoWriter(self.video_source.width, self.video_source.height, self.path)
+
+        for motion in self.moving_list_frames:
+            start_motion = motion[0]
+            end_motion = motion[1]
+            for frame_index in range(start_motion, end_motion + 1):
+                print(frame_index)
+                #self.video_writer.add_frame(self.video_source.get_frame_by_index(frame_index))
+                self.video_writer.add_frame(self.video_source.get_frame_by_index(frame_index)[1])
+        self.video_writer.release()
 
     def analyse(self):
         if self.analyser is None:
@@ -341,9 +372,15 @@ class App:
             self.mark_fragment(self.moving_list)
             self.moving_list = [None, None]
             self.already_moving = False
+            self.moving_list_frames[self.motion_index][1] = return_frame_index
+            self.motion_index += 1
         elif motion_detected and not self.already_moving:
             self.moving_list[0] = return_frame_index / self.video_source.get_fps()
             self.already_moving = True
+            self.moving_list_frames.append([return_frame_index, None])
+
+        #if motion_detected:
+        #    self.video_writer.write(analysed_frame)
 
         return analysed_frame
 
