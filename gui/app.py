@@ -1,13 +1,17 @@
 import datetime
+import threading
 import time
 import tkinter
 import tkinter.filedialog as filedialog
+import tkinter.messagebox as messagebox
+import tkinter.simpledialog as simpledialog
 import tkinter.ttk as ttk
 import cv2
 
 import PIL.Image
 import PIL.ImageTk
 
+import misc.defaults as defaults
 from tools.analyse import Analyser
 from tools.VideoWriter import VideoWriter
 from tools.object_detection.object_detector_graph import ObjectDetectorGraph
@@ -29,6 +33,11 @@ class App:
         self.analyse_on_the_fly = False
         self.already_moving = False
         self.moving_list = [None, None]
+
+        self.run_analysis_thread = False
+        self.analysis_thread = None
+        self.camera_used = False
+
         self.moving_list_frames = []
         self.motion_index = 0
 
@@ -65,7 +74,6 @@ class App:
         self.style.configure("text.Horizontal.TProgressbar", text="0 %")
 
     def __create_frames(self):
-        # TODO - highlightbackorund + highlightthickness only for testing element placing, remove in the future
         self.display_frame = tkinter.Frame(self.window, highlightbackground="black", highlightthickness=1)
         self.display_frame.grid(row=0, column=0)
 
@@ -76,10 +84,17 @@ class App:
         self.control_frame.grid(row=1, columnspan=2)
 
     def __fill_display_frame(self):
-        self.canvas = tkinter.Canvas(self.display_frame, width=300, height=300)
+        self.canvas = tkinter.Canvas(self.display_frame, width=defaults.MAX_VIDEO_WIDTH,
+                                     height=defaults.MAX_VIDEO_HEIGHT)
         self.canvas.pack()
 
     def __fill_control_frame(self):
+        self.use_camera_button_var = tkinter.StringVar()
+        self.use_camera_button_var.set("Capture from camera")
+        self.use_camera_button = tkinter.Button(self.control_frame, textvariable=self.use_camera_button_var,
+                                                command=self.use_camera)
+        self.use_camera_button.pack(side=tkinter.RIGHT)
+
         self.browse_button = tkinter.Button(self.control_frame, text="Browse video file", command=self.browse)
         self.browse_button.pack(side=tkinter.RIGHT)
 
@@ -121,24 +136,49 @@ class App:
         self.undo_detection_button.pack(side=tkinter.BOTTOM)
 
         self.analyse_video_button = tkinter.Button(self.analyse_frame, text="Analyse video",
-                                                   command=self.analyse_video)
+                                                   command=self.start_analysis)
         self.analyse_video_button.pack(side=tkinter.BOTTOM)
 
+        self.stop_analyse_video_button = tkinter.Button(self.analyse_frame, text="Stop analysis",
+                                                        state=tkinter.DISABLED, command=self.stop_analysis)
+        self.stop_analyse_video_button.pack(side=tkinter.BOTTOM)
+    
         self.save_video_button = tkinter.Button(self.analyse_frame, text="Save shortcut video",
                                                    command=self.save_shortcut)
         self.save_video_button.pack(side=tkinter.BOTTOM)
+
+    def use_camera(self):
+        if self.camera_used:
+            self.stop()
+            self.video_source.release_video()
+            self.camera_used = False
+            self.use_camera_button_var.set("Capture from camera")
+        else:
+            device_index = simpledialog.askinteger("Device index", "Give device index:",
+                                                   minvalue=0, maxvalue=100, initialvalue=0)
+            if device_index is None:
+                return
+
+            try:
+                self.video_source = VideoCapture(device_index, self._parameters, self.__update_canvas_size_with_video)
+                self.camera_used = True
+                self.use_camera_button_var.set("Stop camera capture")
+                self.play()
+            except ValueError as e:
+                messagebox.showerror("Error", e)
+            except TypeError:
+                messagebox.showerror("Error", "Incorrect device index")
 
     def browse(self):
         self.path = filedialog.askopenfilename()
         if self.path:
             try:
                 self.video_source = VideoCapture(self.path, self._parameters, self.__update_canvas_size_with_video)
-            except ValueError:
-                return
-
-            self.__update_canvas_size_with_video()
-            # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
-            self.jump_to_video_beginning()
+                self.__update_canvas_size_with_video()
+                # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
+                self.jump_to_video_beginning()
+            except ValueError as e:
+                messagebox.showerror("Error", e)
 
     def __update_canvas_size(self, width, height):
         self.canvas.config(width=width, height=height)
@@ -215,6 +255,36 @@ class App:
 
         self.analyse_on_the_fly = bool(self.analyse_checked.get())
 
+    def __switch_buttons(self, stop_analyse_state, others_state):
+        self.stop_analyse_video_button["state"] = stop_analyse_state
+        self.analyse_video_button["state"] = others_state
+        self.set_parameters_button["state"] = others_state
+
+        self.browse_button["state"] = others_state
+        self.play_button["state"] = others_state
+        self.stop_button["state"] = others_state
+
+    def __disable_buttons(self):
+        self.__switch_buttons(tkinter.NORMAL, tkinter.DISABLED)
+
+    def __enable_buttons(self):
+        self.__switch_buttons(tkinter.DISABLED, tkinter.NORMAL)
+
+    def start_analysis(self):
+        self.__disable_buttons()
+
+        self.run_analysis_thread = True
+        self.analysis_thread = threading.Thread(target=self.analyse_video)
+        self.analysis_thread.start()
+
+    def stop_analysis(self):
+        if self.analysis_thread is not None:
+            self.run_analysis_thread = False
+            self.analysis_thread.join()
+            self.analyser.wait_for_detection()
+            self.analysis_thread = None
+            self.__end_analysis()
+
     def __initialize_analyser(self):
         self.analyser = Analyser(self._parameters, self.object_detector)
         self.jump_to_video_beginning()
@@ -230,7 +300,7 @@ class App:
         frames_number = self.video_source.get_frames_num()
         self.timing_scale_value = 1
 
-        while ret:
+        while ret and self.run_analysis_thread:
             self.__analyse_frame_update_list(frame)
             ret, frame = self.video_source.get_frame()
             self.timing_scale_value += 1
@@ -239,17 +309,23 @@ class App:
                 percent = 100.0 * self.timing_scale_value / frames_number
                 self.__set_progress_bar_value(percent)
 
+        if self.run_analysis_thread:
+            print("Waiting for object detection...")
+            self.analyser.wait_for_detection()
+            self.__set_progress_bar_value(100.0)
+            self.__end_analysis()
+
+    def __end_analysis(self):
         if self.moving_list[0] is not None:
             self.moving_list[1] = self.timing_scale_value
             self.mark_fragment(self.moving_list)
 
         Analyser.destroy_windows()
-        #self.video_writer.release()
-        self.__set_progress_bar_value(100.0)
         self.jump_to_video_beginning()
 
         self.moving_list = [None, None]
         self.already_moving = False
+        self.__enable_buttons()
 
     def __set_progress_bar_value(self, value):
         self.progress_bar["value"] = value

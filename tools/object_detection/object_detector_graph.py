@@ -122,5 +122,5 @@ class ObjectDetectorGraph:
 
                 elap = (end - start)
                 print("[INFO] single frame took {:.4f} seconds".format(elap))
-                cv2.imshow("DETECTION", self.frame)
+                #cv2.imshow("DETECTION", self.frame)
                 #self.vs.release()

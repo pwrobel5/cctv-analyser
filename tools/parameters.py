@@ -8,17 +8,21 @@ class Parameters:
         self._max_video_height = defaults.MAX_VIDEO_HEIGHT
 
         self._blur_size = defaults.BLUR_SIZE
-        self._delta_threshold = defaults.DELTA_THRESHOLD
-        self._dilation_iterations = defaults.DILATION_ITERATIONS
         self._minimal_move_area = defaults.MINIMAL_MOVE_AREA
         self._bg_subtractor = defaults.BG_SUBTRACTOR
+
         self._begin_with_sigmadelta = True
         self._sigmadelta_frames = defaults.SIGMADELTA_FRAMES
 
         self._use_threshold = True
+        self._delta_threshold = defaults.DELTA_THRESHOLD
+        self._dilation_iterations = defaults.DILATION_ITERATIONS
+
         self._max_contours = defaults.MAX_CONTOURS
         self._minimal_move_frames = defaults.MINIMAL_MOVE_FRAMES
         self._max_break_length = defaults.MAX_BREAK_LENGTH
+
+        self._object_detection_interval = defaults.OBJECT_DETECTION_INTERVAL
 
         self._callbacks = {property_name: [] for property_name, _ in vars(self).items()}
 
@@ -54,22 +58,6 @@ class Parameters:
     @blur_size.setter
     def blur_size(self, blur_size):
         self._blur_size = blur_size
-
-    @property
-    def delta_threshold(self):
-        return self._delta_threshold
-
-    @delta_threshold.setter
-    def delta_threshold(self, delta_threshold):
-        self._delta_threshold = delta_threshold
-
-    @property
-    def dilation_iterations(self):
-        return self._dilation_iterations
-
-    @dilation_iterations.setter
-    def dilation_iterations(self, dilation_iterations):
-        self._dilation_iterations = dilation_iterations
 
     @property
     def minimal_move_area(self):
@@ -116,6 +104,22 @@ class Parameters:
         self._use_threshold = use_threshold
 
     @property
+    def delta_threshold(self):
+        return self._delta_threshold
+
+    @delta_threshold.setter
+    def delta_threshold(self, delta_threshold):
+        self._delta_threshold = delta_threshold
+
+    @property
+    def dilation_iterations(self):
+        return self._dilation_iterations
+
+    @dilation_iterations.setter
+    def dilation_iterations(self, dilation_iterations):
+        self._dilation_iterations = dilation_iterations
+
+    @property
     def max_contours(self):
         return self._max_contours
 
@@ -138,3 +142,11 @@ class Parameters:
     @max_break_length.setter
     def max_break_length(self, max_break_length):
         self._max_break_length = max_break_length
+
+    @property
+    def object_detection_interval(self):
+        return self._object_detection_interval
+
+    @object_detection_interval.setter
+    def object_detection_interval(self, interval):
+        self._object_detection_interval = interval

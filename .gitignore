@@ -229,3 +229,4 @@ cython_debug/
 .idea/*
 
 samples/
+/tools/object_detection/weights/yolov3.weights

@@ -1,12 +1,11 @@
+from threading import Thread
+
 import cv2
 #import pybgs
 import pybgs
-from threading import Thread
 
 
 from .subtractors import BgSubtractorType
-from tools.object_detection import object_detector_graph
-from tools.object_detection import object_detector
 
 SUBTRACTORS = {
     BgSubtractorType.KNN: cv2.createBackgroundSubtractorKNN,
@@ -19,7 +18,7 @@ NO_MOVEMENT_INDEX = -1
 
 
 class Analyser:
-    def __init__(self, parameters, detector):
+    def __init__(self, parameters, detector, show_preview=True):
         self._parameters = parameters
         self._frame_counter = 0
         self._background_subtractor = self.__initialize_bg_subtractor()
@@ -31,6 +30,9 @@ class Analyser:
         self._motion_detected = False
         self._object_detector = detector
         self._frames_to_detect = []
+        self._detection_threads = []
+
+        self._show_preview = show_preview
     #     self.shortcut_video_path = "./output.avi"
     #     self.writer = None
     #     self.__initialize_video_writer()
@@ -63,8 +65,6 @@ class Analyser:
             bg_threshold = bg_mask
 
         contours_bg = self.__get_contours(bg_threshold)
-        cv2.imshow("After bg subtraction", bg_threshold)
-
         found_contours = len(contours_bg)
         contours_bg = list(filter(lambda cnt: cv2.contourArea(cnt) >= self._parameters.minimal_move_area, contours_bg))
 
@@ -77,16 +77,18 @@ class Analyser:
                 return_frame_index = self._movement_begin
         else:
             self.__set_break_counters()
-            
+
             if self._breaking_frames >= self._parameters.max_break_length:
                 print("STOP")
                 return_frame_index = self._movement_end
                 self.__unmark_motion()
                 t = Thread(target=self._object_detector.detect_objects, args=(self._frames_to_detect,))
                 t.start()
+                self._detection_threads.append(t)
                 self._frames_to_detect = []
 
-        if self._motion_detected and self._moving_frames > self._parameters.max_break_length and self._moving_frames % 30 == 0:
+        if self._motion_detected and self._moving_frames > self._parameters.max_break_length and \
+                self._moving_frames % self._parameters.object_detection_interval == 0:
             self._frames_to_detect.append(frame)
             print("ADD")
 
@@ -97,13 +99,13 @@ class Analyser:
         cv2.putText(frame, "Status: {}".format(status), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 255), 2)
 
-        cv2.imshow("Frame", frame)
+        if self._show_preview:
+            cv2.imshow("After bg subtraction", bg_threshold)
+            cv2.imshow("Frame", frame)
 
-
-
-        # OpenCV needs it to correctly show images for some reason
-        # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
-        cv2.waitKey(1)
+            # OpenCV needs it to correctly show images for some reason
+            # (https://stackoverflow.com/questions/21810452/cv2-imshow-command-doesnt-work-properly-in-opencv-python/50947231)
+            cv2.waitKey(1)
 
         return frame, self._motion_detected, return_frame_index
 
@@ -164,3 +166,7 @@ class Analyser:
     @staticmethod
     def destroy_windows():
         cv2.destroyAllWindows()
+
+    def wait_for_detection(self):
+        for thread in self._detection_threads:
+            thread.join()
