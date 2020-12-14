@@ -6,14 +6,13 @@ import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
 import tkinter.simpledialog as simpledialog
 import tkinter.ttk as ttk
-import cv2
 
 import PIL.Image
 import PIL.ImageTk
 
 import misc.defaults as defaults
-from tools.analyse import Analyser
 from tools.VideoWriter import VideoWriter
+from tools.analyse import Analyser
 from tools.object_detection.object_detector_graph import ObjectDetectorGraph
 from tools.parameters import Parameters
 from .parameters_window import ParametersWindow
@@ -290,6 +289,8 @@ class App:
         self.jump_to_video_beginning()
 
     def analyse_video(self):
+        starting_point = time.time()
+
         if self.video_source is None:
             return
 
@@ -309,11 +310,21 @@ class App:
                 percent = 100.0 * self.timing_scale_value / frames_number
                 self.__set_progress_bar_value(percent)
 
+        end_analyse_point = time.time()
+
         if self.run_analysis_thread:
             print("Waiting for object detection...")
             self.analyser.wait_for_detection()
             self.__set_progress_bar_value(100.0)
             self.__end_analysis()
+
+        end_all_point = time.time()
+
+        print("Time spent on analysis: {} s".format(end_analyse_point - starting_point))
+        print("Time spent on analysis including waiting for object detection: {} s".format(end_all_point -
+                                                                                           starting_point))
+        print("Video FPS: {}".format(self.video_source.get_fps()))
+        print("Video size: {} x {}".format(self.video_source.width, self.video_source.height))
 
     def __end_analysis(self):
         if self.moving_list[0] is not None:

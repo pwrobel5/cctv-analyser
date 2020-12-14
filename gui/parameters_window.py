@@ -93,12 +93,15 @@ class ParametersWindow(tkinter.Toplevel):
 
     def __switch_mode(self):
         if self._mode_option.get() == "default":
+            self.__enable_custom()
             self.__fill_entries_from_dict(modes.DEFAULT_MODE)
             self.__disable_custom()
         elif self._mode_option.get() == "fast":
+            self.__enable_custom()
             self.__fill_entries_from_dict(modes.FAST_MODE)
             self.__disable_custom()
         elif self._mode_option.get() == "changing_light":
+            self.__enable_custom()
             self.__fill_entries_from_dict(modes.CHANGING_LIGHT_MODE)
             self.__disable_custom()
         else:

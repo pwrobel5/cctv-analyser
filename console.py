@@ -95,6 +95,8 @@ def main():
     else:
         write_parameters_to_file("config.txt", parameters)
 
+    starting_point = time.time()
+
     object_detector = ObjectDetectorGraph()
     analyser = Analyser(parameters, object_detector, show_preview=False)
     already_moving = False
@@ -117,13 +119,22 @@ def main():
         ret, frame = video_capture.get_frame()
         frame_counter += 1
 
+    end_analyse_point = time.time()
+
     print("Waiting for object detection to finish...")
     analyser.wait_for_detection()
     if already_moving:
         formatted = format_time(frame_counter / video_capture.get_fps())
         print("Fragment end: {}".format(formatted))
 
+    end_all_point = time.time()
     print("Analysis completed")
+
+    print("Time spent on analysis: {} s".format(end_analyse_point - starting_point))
+    print("Time spent on analysis including waiting for object detection: {} s".format(end_all_point -
+                                                                                       starting_point))
+    print("Video FPS: {}".format(video_capture.get_fps()))
+    print("Video size: {} x {}".format(video_capture.width, video_capture.height))
 
 
 if __name__ == '__main__':
