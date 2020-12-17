@@ -11,7 +11,7 @@ import PIL.Image
 import PIL.ImageTk
 
 import misc.defaults as defaults
-from tools.VideoWriter import VideoWriter
+from tools.video_writer import VideoWriter
 from tools.analyse import Analyser
 from tools.object_detection.object_detector_graph import ObjectDetectorGraph
 from tools.parameters import Parameters
