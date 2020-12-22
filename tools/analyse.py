@@ -30,16 +30,11 @@ class Analyser:
         self._frames_to_detect = []
         self._detection_threads = []
 
+        self._motion_index = 0
+
         self._show_preview = show_preview
 
-    #     self.shortcut_video_path = "./output.avi"
-    #     self.writer = None
-    #     self.__initialize_video_writer()
-    #
-    # def __initialize_video_writer(self):
-    #     fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-    #     self.writer = cv2.VideoWriter(self.shortcut_video_path, fourcc, 30,
-    #                              (480, 480), True)
+
 
     def __initialize_bg_subtractor(self):
         if self._parameters.begin_with_sigmadelta:
@@ -80,10 +75,12 @@ class Analyser:
             if self._breaking_frames >= self._parameters.max_break_length:
                 return_frame_index = self._movement_end
                 self.__unmark_motion()
-                t = Thread(target=self._object_detector.detect_objects, args=(self._frames_to_detect,))
+                t = Thread(target=self._object_detector.detect_objects, args=(self._frames_to_detect,
+                                                                              self._motion_index,))
                 t.start()
                 self._detection_threads.append(t)
                 self._frames_to_detect = []
+                self._motion_index += 1
 
         if self._motion_detected and self._moving_frames % self._parameters.object_detection_interval == 0:
             self._frames_to_detect.append(frame)

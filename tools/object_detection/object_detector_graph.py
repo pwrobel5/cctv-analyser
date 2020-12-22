@@ -1,18 +1,15 @@
 import cv2
 import numpy as np
-#import imutils
 import time
-import sys
-import os
 from .cfg import parameters_detection
 import threading
 
 
-
 class ObjectDetectorGraph:
-    def __init__(self):
+    def __init__(self, app):
         self.frames = None
         self.frame = None
+        self.app = app
 
         # the neural network configuration
         self.config_path = "tools/object_detection/cfg/yolov3.cfg"
@@ -36,21 +33,23 @@ class ObjectDetectorGraph:
         self.H = None
         self.prop = None
         self.total = None
+
+
         #CUDA = torch.cuda.is_available()
 
         self._lock = threading.Lock()
 
-
     def upload_frame(self, frame):
         self.frame = frame
-
 
     def upload_frames(self, frames):
         self.frames = frames
 
-    def detect_objects(self, frames):
+    def detect_objects(self, frames, index):
+
         with self._lock:
-            print(len(frames))
+            found_objects = []
+            #print(len(frames))
             self.upload_frames(frames)
             for frame in self.frames:
                 self.frame = frame
@@ -103,7 +102,7 @@ class ObjectDetectorGraph:
                 # apply non-maxima suppression to suppress weak, overlapping
                 # bounding boxes
                 idxs = cv2.dnn.NMSBoxes(boxes, confidences, parameters_detection.CONFIDENCE,
-                                        parameters_detection.SCORE_THRESHOLD)  # TODO not sure which threshold to use
+                                        parameters_detection.SCORE_THRESHOLD)
                 # ensure at least one detection exists
                 if len(idxs) > 0:
                     # loop over the indexes we are keeping
@@ -116,11 +115,28 @@ class ObjectDetectorGraph:
                         cv2.rectangle(self.frame, (x, y), (x + w, y + h), color, 2)
                         text = "{}: {:.4f}".format(self.labels[classIDs[i]],
                                                    confidences[i])
-                        print(text)
+                        if not (self.labels[classIDs[i]] in found_objects):
+                            found_objects.append(self.labels[classIDs[i]])
+                        #print("IND: " + str(index))
+                        #print(text)
+
+
+
                         cv2.putText(self.frame, text, (x, y - 5),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
                 elap = (end - start)
                 print("[INFO] single frame took {:.4f} seconds".format(elap))
-                #cv2.imshow("DETECTION", self.frame)
-                #self.vs.release()
+
+            if len(frames) > 0:
+                self._save(index, found_objects)
+            #print("FINISHED " + str(index) )
+
+    def _save(self, index, objects):
+        f = open("annotations.txt", "a")
+        f.write(self.app.get_moving_times(index)[0] + " - " + self.app.get_moving_times(index)[1] + ": ")
+        for o in objects:
+            f.write(o + " ")
+        f.write(" \n")
+        f.close()
+

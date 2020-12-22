@@ -117,7 +117,7 @@ class ObjectDetectorVideo:
             # apply non-maxima suppression to suppress weak, overlapping
             # bounding boxes
             idxs = cv2.dnn.NMSBoxes(boxes, confidences, parameters_detection.CONFIDENCE,
-                                    parameters_detection.SCORE_THRESHOLD)  # TODO not sure which threshold to use
+                                    parameters_detection.SCORE_THRESHOLD)
             # ensure at least one detection exists
             if len(idxs) > 0:
                 # loop over the indexes we are keeping

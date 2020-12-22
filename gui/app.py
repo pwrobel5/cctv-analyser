@@ -38,6 +38,7 @@ class App:
         self.camera_used = False
 
         self.moving_list_frames = []
+        self.moving_list_times = []
         self.motion_index = 0
 
         self.__set_style()
@@ -51,7 +52,7 @@ class App:
         self.update()
         self.analyser = None
         self.video_writer = None
-        self.object_detector = ObjectDetectorGraph()
+        self.object_detector = ObjectDetectorGraph(self)
 
         self._parameters = Parameters()
         self._parameters.add_callback("_max_video_width", self.__update_canvas_size_without_video)
@@ -242,9 +243,13 @@ class App:
         for motion in self.moving_list_frames:
             start_motion = motion[0]
             end_motion = motion[1]
+            self.video_writer.add_black_frame(str(time.strftime("%H:%M:%S", time.gmtime(start_motion /
+                                                                                        self.video_source.get_fps()))),
+                                              str(time.strftime("%H:%M:%S", time.gmtime(end_motion /
+                                                                                        self.video_source.get_fps()))),
+                                              self.video_source.get_frame_by_index(start_motion)[1])
             for frame_index in range(start_motion, end_motion + 1):
                 print(frame_index)
-                #self.video_writer.add_frame(self.video_source.get_frame_by_index(frame_index))
                 self.video_writer.add_frame(self.video_source.get_frame_by_index(frame_index)[1])
         self.video_writer.release()
 
@@ -381,14 +386,19 @@ class App:
         if not motion_detected and self.already_moving:
             self.moving_list[1] = return_frame_index / self.video_source.get_fps()
             self.mark_fragment(self.moving_list)
-            self.moving_list = [None, None]
             self.already_moving = False
             self.moving_list_frames[self.motion_index][1] = return_frame_index
+            self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
+            print(self.moving_list_times[self.motion_index])
             self.motion_index += 1
+            self.moving_list = [None, None]
+
         elif motion_detected and not self.already_moving:
             self.moving_list[0] = return_frame_index / self.video_source.get_fps()
             self.already_moving = True
             self.moving_list_frames.append([return_frame_index, None])
+            self.moving_list_times.append([time.strftime("%H:%M:%S", time.gmtime(self.moving_list[0])), None])
+
 
         #if motion_detected:
         #    self.video_writer.write(analysed_frame)
@@ -398,3 +408,6 @@ class App:
     def mark_fragment(self, moving_list):
         formatted = [time.strftime("%H:%M:%S", time.gmtime(element)) for element in moving_list]
         self.fragment_list.insert("", "end", values=formatted)
+
+    def get_moving_times(self, index):
+        return self.moving_list_times[index]
