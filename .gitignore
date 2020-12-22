@@ -230,3 +230,7 @@ cython_debug/
 
 samples/
 /tools/object_detection/weights/yolov3.weights
+*.mp4
+config.txt
+annotations.txt
+output.avi

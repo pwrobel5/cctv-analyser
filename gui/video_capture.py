@@ -51,7 +51,7 @@ class VideoCapture:
                 if self.resize:
                     frame = cv2.resize(frame, (self.parameters.max_video_width, self.parameters.max_video_height))
 
-                return ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                return ret, frame
             else:
                 return ret, None
         else:

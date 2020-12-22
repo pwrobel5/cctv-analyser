@@ -249,7 +249,6 @@ class App:
                                                                                         self.video_source.get_fps()))),
                                               self.video_source.get_frame_by_index(start_motion)[1])
             for frame_index in range(start_motion, end_motion + 1):
-                print(frame_index)
                 self.video_writer.add_frame(self.video_source.get_frame_by_index(frame_index)[1])
         self.video_writer.release()
 
@@ -284,10 +283,10 @@ class App:
     def stop_analysis(self):
         if self.analysis_thread is not None:
             self.run_analysis_thread = False
+            self.__end_analysis()
             self.analysis_thread.join()
             self.analyser.wait_for_detection()
             self.analysis_thread = None
-            self.__end_analysis()
 
     def __initialize_analyser(self):
         self.analyser = Analyser(self._parameters, self.object_detector)
@@ -319,9 +318,9 @@ class App:
 
         if self.run_analysis_thread:
             print("Waiting for object detection...")
+            self.__end_analysis()
             self.analyser.wait_for_detection()
             self.__set_progress_bar_value(100.0)
-            self.__end_analysis()
 
         end_all_point = time.time()
 
@@ -334,13 +333,16 @@ class App:
     def __end_analysis(self):
         if self.moving_list[0] is not None:
             self.moving_list[1] = self.timing_scale_value
+            self.moving_list_frames[self.motion_index][1] = self.timing_scale_value
+            self.motion_index += 1
             self.mark_fragment(self.moving_list)
+            self.analyser.run_object_analysis()
 
         Analyser.destroy_windows()
         self.jump_to_video_beginning()
 
-        self.moving_list = [None, None]
-        self.already_moving = False
+        #self.moving_list = [None, None]
+        #self.already_moving = False
         self.__enable_buttons()
 
     def __set_progress_bar_value(self, value):

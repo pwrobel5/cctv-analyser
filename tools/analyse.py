@@ -47,6 +47,13 @@ class Analyser:
         subtractor_initializer = SUBTRACTORS.get(bg_subtractor, cv2.BackgroundSubtractorKNN)
         return subtractor_initializer()
 
+    def run_object_analysis(self):
+        t = Thread(target=self._object_detector.detect_objects, args=(self._frames_to_detect, self._motion_index))
+        t.start()
+        self._detection_threads.append(t)
+        self._frames_to_detect = []
+        self._motion_index += 1
+
     def analyse_frame(self, frame):
         return_frame_index = None
         self._frame_counter += 1
@@ -75,12 +82,7 @@ class Analyser:
             if self._breaking_frames >= self._parameters.max_break_length:
                 return_frame_index = self._movement_end
                 self.__unmark_motion()
-                t = Thread(target=self._object_detector.detect_objects, args=(self._frames_to_detect,
-                                                                              self._motion_index,))
-                t.start()
-                self._detection_threads.append(t)
-                self._frames_to_detect = []
-                self._motion_index += 1
+                self.run_object_analysis()
 
         if self._motion_detected and self._moving_frames % self._parameters.object_detection_interval == 0:
             self._frames_to_detect.append(frame)
