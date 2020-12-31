@@ -14,7 +14,7 @@ import PIL.ImageTk
 import misc.defaults as defaults
 from tools.video_writer import VideoWriter
 from tools.analyse import Analyser
-from tools.object_detection.object_detector_graph import ObjectDetectorGraph
+from tools.object_detection.object_detector import ObjectDetector
 from tools.parameters import Parameters
 from .parameters_window import ParametersWindow
 from .video_capture import VideoCapture
@@ -54,7 +54,7 @@ class App:
         self.update()
         self.analyser = None
         self.video_writer = None
-        self.object_detector = ObjectDetectorGraph(self)
+        self.object_detector = ObjectDetector(self)
 
         self._parameters = Parameters()
         self._parameters.add_callback("_max_video_width", self.__update_canvas_size_without_video)

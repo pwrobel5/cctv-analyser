@@ -4,7 +4,7 @@ import time
 
 from gui.video_capture import VideoCapture
 from tools.analyse import Analyser
-from tools.object_detection.object_detector_graph import ObjectDetectorGraph
+from tools.object_detection.object_detector import ObjectDetector
 from tools.parameters import Parameters
 
 running_analysis = True
@@ -97,7 +97,7 @@ def main():
 
     starting_point = time.time()
 
-    object_detector = ObjectDetectorGraph()
+    object_detector = ObjectDetector()
     analyser = Analyser(parameters, object_detector, show_preview=False)
     already_moving = False
 
