@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import time
+import yaml
 from .cfg import parameters_detection
 import threading
 
@@ -46,10 +47,9 @@ class ObjectDetectorGraph:
         self.frames = frames
 
     def detect_objects(self, frames, index):
-
         with self._lock:
             found_objects = []
-            #print(len(frames))
+
             self.upload_frames(frames)
             for frame in self.frames:
                 self.frame = frame
@@ -117,10 +117,6 @@ class ObjectDetectorGraph:
                                                    confidences[i])
                         if not (self.labels[classIDs[i]] in found_objects):
                             found_objects.append(self.labels[classIDs[i]])
-                        #print("IND: " + str(index))
-                        #print(text)
-
-
 
                         cv2.putText(self.frame, text, (x, y - 5),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -133,7 +129,13 @@ class ObjectDetectorGraph:
             #print("FINISHED " + str(index) )
 
     def _save(self, index, objects):
-        f = open("annotations.txt", "a")
+        path = self.app.path
+        with open("./analyse_stat.yaml") as stat_file:
+            analysed_files = yaml.load(stat_file, Loader=yaml.FullLoader)
+        analyse_index = analysed_files.get(path)
+        path = path[0: path.rfind("."):] + "_annotations_" + str(analyse_index) + ".txt"
+
+        f = open(path, "a")
         f.write(self.app.get_moving_times(index)[0] + " - " + self.app.get_moving_times(index)[1] + ": ")
         for o in objects:
             f.write(o + " ")

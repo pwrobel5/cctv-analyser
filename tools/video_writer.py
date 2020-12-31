@@ -1,35 +1,33 @@
 import cv2
 import numpy as np
+import yaml
 
 
 class VideoWriter:
-    def __init__(self, width, height, path):
-        self.shortcut_video_path = self.__set_output_path(path)
+    def __init__(self, width, height):
         self.width = width
         self.height = height
         self.writer = None
-        self.__initialize_video_writer()
+        self.shortcut_video_path = None
 
     def __set_output_path(self, path):
-        return "./output.avi"
+        with open("./analyse_stat.yaml") as stat_file:
+            analysed_files = yaml.load(stat_file, Loader=yaml.FullLoader)
+        index = analysed_files.get(path)
+        path = path[0: path.rfind("."):] + "_shortcut_" + str(index) + ".avi"
+        self.shortcut_video_path = path
 
-    def __initialize_video_writer(self):
+
+    def initialize_video_writer(self, path):
+        self.__set_output_path(path)
         fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 
         self.writer = cv2.VideoWriter(self.shortcut_video_path, fourcc, 30, (int(self.width), int(self.height)), True)
 
     def add_frame(self, frame):
-        #black = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        #frame = np.zeros(shape=[int(self.width), int(self.height), 3], dtype=np.uint8)
-
-        #cv2.putText(frame, "fdsggd", (100, 100- 5),
-        #            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (24,67,224), 2)
         self.writer.write(frame)
-        #frame = np.zeros(shape=[int(self.width), int(self.height), 3], dtype=np.uint8)
-        #self.writer.write(black)
 
     def add_black_frame(self, start, end, frame):
-        #black = cv2.cvtColor(frame, cv2.COLOR_GRA)
         for i in range (1, 60):
             frame = np.zeros(shape=[int(self.height), int(self.width), 3], dtype=np.uint8)
             cv2.putText(frame, start + " - " + end, (50, 50),

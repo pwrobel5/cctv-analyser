@@ -35,7 +35,6 @@ class Analyser:
         self._show_preview = show_preview
 
 
-
     def __initialize_bg_subtractor(self):
         if self._parameters.begin_with_sigmadelta:
             return pybgs.SigmaDelta()

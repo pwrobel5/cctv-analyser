@@ -1,6 +1,7 @@
 import datetime
 import threading
 import time
+import yaml
 import tkinter
 import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
@@ -24,6 +25,7 @@ class App:
         self.window = window
         self.window.title(window_title)
 
+        self.analyse_stats_path = "./analyse_stat.yaml"
         self.path = None
         self.video_source = None
         self.current_frame = None
@@ -177,8 +179,23 @@ class App:
                 self.__update_canvas_size_with_video()
                 # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
                 self.jump_to_video_beginning()
+
             except ValueError as e:
                 messagebox.showerror("Error", e)
+
+            self.__init_analyse_stat()
+
+    def __init_analyse_stat(self):
+        with open(self.analyse_stats_path) as stat_file:
+            analysed_files = yaml.load(stat_file, Loader=yaml.FullLoader)
+        if analysed_files.get(self.path) is not None:
+            updated = {self.path: analysed_files.get(self.path) + 1}
+            analysed_files.update(updated)
+        else:
+            analysed_files[self.path] = 0
+        print("[INFO] analyse index: " + str(analysed_files.get(self.path)))
+        with open(self.analyse_stats_path, "w") as stat_file:
+            yaml.dump(analysed_files, stat_file)
 
     def __update_canvas_size(self, width, height):
         self.canvas.config(width=width, height=height)
@@ -238,8 +255,9 @@ class App:
             return
         if self.video_writer is None:
             print(self.video_source.width)
-            self.video_writer = VideoWriter(self.video_source.width, self.video_source.height, self.path)
+            self.video_writer = VideoWriter(self.video_source.width, self.video_source.height)
 
+        self.video_writer.initialize_video_writer(self.path)
         for motion in self.moving_list_frames:
             start_motion = motion[0]
             end_motion = motion[1]
