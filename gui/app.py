@@ -52,7 +52,7 @@ class App:
         self.update()
         self.analyser = None
         self.video_writer = None
-        self.object_detector = ObjectDetectorGraph(self)
+        self.object_detector = None
 
         self._parameters = Parameters()
         self._parameters.add_callback("_max_video_width", self.__update_canvas_size_without_video)
@@ -122,6 +122,11 @@ class App:
         self.fragment_list.heading("end", text="end")
         self.fragment_list.pack()
 
+        self.preview_checked = tkinter.BooleanVar()
+        self.preview_checkbox = tkinter.Checkbutton(self.analyse_frame, text="Show preview",
+                                                    command=self.mark_preview, variable=self.preview_checked)
+        self.preview_checkbox.pack(side=tkinter.BOTTOM)
+
         self.analyse_checked = tkinter.IntVar()
         self.analyse_checkbox = tkinter.Checkbutton(self.analyse_frame, text="Analyse video on the fly",
                                                     command=self.analyse, variable=self.analyse_checked)
@@ -142,9 +147,9 @@ class App:
         self.stop_analyse_video_button = tkinter.Button(self.analyse_frame, text="Stop analysis",
                                                         state=tkinter.DISABLED, command=self.stop_analysis)
         self.stop_analyse_video_button.pack(side=tkinter.BOTTOM)
-    
+
         self.save_video_button = tkinter.Button(self.analyse_frame, text="Save shortcut video",
-                                                   command=self.save_shortcut)
+                                                command=self.save_shortcut)
         self.save_video_button.pack(side=tkinter.BOTTOM)
 
     def use_camera(self):
@@ -169,6 +174,10 @@ class App:
             except TypeError:
                 messagebox.showerror("Error", "Incorrect device index")
 
+    def mark_preview(self):
+        if self.analyser is not None:
+            self.analyser.set_preview_mode(self.preview_checked.get())
+
     def browse(self):
         self.path = filedialog.askopenfilename()
         if self.path:
@@ -176,9 +185,18 @@ class App:
                 self.video_source = VideoCapture(self.path, self._parameters, self.__update_canvas_size_with_video)
                 self.__update_canvas_size_with_video()
                 # self.delay = int(1000 / self.video_source.get_fps())  # 1000 to obtain delay in microseconds
-                self.jump_to_video_beginning()
+                self.__clear_detections()
+                self.__initialize_analyser()
             except ValueError as e:
                 messagebox.showerror("Error", e)
+
+    def __clear_detections(self):
+        self.fragment_list.delete(*self.fragment_list.get_children())
+        self.already_moving = False
+        self.moving_list = [None, None]
+        self.moving_list_frames = []
+        self.moving_list_times = []
+        self.motion_index = 0
 
     def __update_canvas_size(self, width, height):
         self.canvas.config(width=width, height=height)
@@ -230,7 +248,7 @@ class App:
             return
 
         for selected_fragment in selection_list:
-            del(self.moving_list_frames[self.fragment_list.index(selected_fragment)])
+            del (self.moving_list_frames[self.fragment_list.index(selected_fragment)])
             self.fragment_list.delete(selected_fragment)
 
     def save_shortcut(self):
@@ -289,7 +307,8 @@ class App:
             self.analysis_thread = None
 
     def __initialize_analyser(self):
-        self.analyser = Analyser(self._parameters, self.object_detector)
+        self.object_detector = ObjectDetectorGraph(self)
+        self.analyser = Analyser(self._parameters, self.object_detector, self.preview_checked.get())
         self.jump_to_video_beginning()
 
     def analyse_video(self):
@@ -329,11 +348,16 @@ class App:
                                                                                            starting_point))
         print("Video FPS: {}".format(self.video_source.get_fps()))
         print("Video size: {} x {}".format(self.video_source.width, self.video_source.height))
+        messagebox.showinfo("Information", "Analysis completed successfully")
 
     def __end_analysis(self):
         if self.moving_list[0] is not None:
             self.moving_list[1] = self.timing_scale_value
             self.moving_list_frames[self.motion_index][1] = self.timing_scale_value
+            self.already_moving = False
+            self.moving_list_frames[self.motion_index][1] = self.timing_scale_value
+            self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
+            print(self.moving_list_times[self.motion_index])
             self.motion_index += 1
             self.mark_fragment(self.moving_list)
             self.analyser.run_object_analysis()
@@ -341,9 +365,8 @@ class App:
         Analyser.destroy_windows()
         self.jump_to_video_beginning()
 
-        #self.moving_list = [None, None]
-        #self.already_moving = False
         self.__enable_buttons()
+        self.run_analysis_thread = False
 
     def __set_progress_bar_value(self, value):
         self.progress_bar["value"] = value
@@ -401,8 +424,7 @@ class App:
             self.moving_list_frames.append([return_frame_index, None])
             self.moving_list_times.append([time.strftime("%H:%M:%S", time.gmtime(self.moving_list[0])), None])
 
-
-        #if motion_detected:
+        # if motion_detected:
         #    self.video_writer.write(analysed_frame)
 
         return analysed_frame

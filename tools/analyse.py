@@ -2,6 +2,7 @@ from threading import Thread
 
 import cv2
 import pybgs
+import threading
 
 from .subtractors import BgSubtractorType
 
@@ -31,10 +32,9 @@ class Analyser:
         self._detection_threads = []
 
         self._motion_index = 0
+        self._lock = threading.Lock()
 
         self._show_preview = show_preview
-
-
 
     def __initialize_bg_subtractor(self):
         if self._parameters.begin_with_sigmadelta:
@@ -80,9 +80,11 @@ class Analyser:
             self.__set_break_counters()
 
             if self._breaking_frames >= self._parameters.max_break_length:
+                if self._motion_detected:
+                    self.run_object_analysis()
+
                 return_frame_index = self._movement_end
                 self.__unmark_motion()
-                self.run_object_analysis()
 
         if self._motion_detected and self._moving_frames % self._parameters.object_detection_interval == 0:
             self._frames_to_detect.append(frame)
@@ -92,9 +94,10 @@ class Analyser:
                     0.5, (0, 0, 255), 2)
 
         if self._show_preview:
-            cv2.imshow("After bg subtraction", bg_threshold)
-            cv2.imshow("Frame", frame)
-            cv2.waitKey(1)
+            with self._lock:
+                cv2.imshow("After bg subtraction {}".format(threading.get_ident()), bg_threshold)
+                cv2.imshow("Frame {}".format(threading.get_ident()), frame)
+                cv2.waitKey(1)
 
         return frame, self._motion_detected, return_frame_index
 
@@ -159,3 +162,6 @@ class Analyser:
     def wait_for_detection(self):
         for thread in self._detection_threads:
             thread.join()
+
+    def set_preview_mode(self, mode):
+        self._show_preview = mode
