@@ -4,6 +4,8 @@ import time
 import yaml
 from .cfg import parameters_detection
 import threading
+from _datetime import datetime
+from _datetime import timedelta
 
 
 class ObjectDetector:
@@ -128,17 +130,36 @@ class ObjectDetector:
                 self._save(index, found_objects)
             #print("FINISHED " + str(index) )
 
+    # time.strftime("%H:%M:%S", time.gmtime(self.moving_list[0]))
+
     def _save(self, index, objects):
         path = self.app.path
         with open("./analyse_stat.yaml") as stat_file:
             analysed_files = yaml.load(stat_file, Loader=yaml.FullLoader)
         analyse_index = analysed_files.get(path)
         path = path[0: path.rfind("."):] + "_annotations_" + str(analyse_index) + ".txt"
+        if self.app.video_tagged_date is not None:
+            # UTC 2013-08-15 14:31:51
+            start = datetime.strptime(self.app.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
+                    + timedelta(seconds=int(self.app.get_moving_times(index)[0])) - timedelta(seconds=int(
+                self.app.video_source.get_frames_num() / self.app.video_source.get_fps()))
+            end = datetime.strptime(self.app.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
+                  + timedelta(seconds=int(self.app.get_moving_times(index)[1])) - timedelta(seconds=int(
+                self.app.video_source.get_frames_num() / self.app.video_source.get_fps()))
 
-        f = open(path, "a")
-        f.write(self.app.get_moving_times(index)[0] + " - " + self.app.get_moving_times(index)[1] + ": ")
-        for o in objects:
-            f.write(o + " ")
-        f.write(" \n")
-        f.close()
+            f = open(path, "a")
+            f.write(str(start) + " - " + str(end) + ": ")
+            for o in objects:
+                f.write(o + " ")
+            f.write(" \n")
+            f.close()
+        else:
+            f = open(path, "a")
+            f.write(time.strftime("%H:%M:%S", time.gmtime(self.app.get_moving_times(index)[0])) + " - " + time.strftime(
+                "%H:%M:%S", time.gmtime(
+                    self.app.get_moving_times(index)[1])) + ": ")
+            for o in objects:
+                f.write(o + " ")
+            f.write(" \n")
+            f.close()
 

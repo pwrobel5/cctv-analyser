@@ -2,6 +2,7 @@ import datetime
 import threading
 import time
 import yaml
+from pymediainfo import MediaInfo
 import tkinter
 import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
@@ -20,6 +21,8 @@ from .parameters_window import ParametersWindow
 from .video_capture import VideoCapture
 
 
+
+
 class App:
     def __init__(self, window, window_title):
         self.window = window
@@ -27,6 +30,7 @@ class App:
 
         self.analyse_stats_path = "./analyse_stat.yaml"
         self.path = None
+        self.video_tagged_date = None
         self.video_source = None
         self.current_frame = None
         self.photo = None
@@ -194,6 +198,13 @@ class App:
           
             self.__init_analyse_stat()
 
+            # mediainfo
+            self.video_tagged_date = None
+            media_info = MediaInfo.parse(self.path)
+            for track in media_info.tracks:
+                if track.track_type == "Video":
+                    self.video_tagged_date = track.tagged_date
+
     def __clear_detections(self):
         self.fragment_list.delete(*self.fragment_list.get_children())
         self.already_moving = False
@@ -276,11 +287,21 @@ class App:
         for motion in self.moving_list_frames:
             start_motion = motion[0]
             end_motion = motion[1]
-            self.video_writer.add_black_frame(str(time.strftime("%H:%M:%S", time.gmtime(start_motion /
-                                                                                        self.video_source.get_fps()))),
-                                              str(time.strftime("%H:%M:%S", time.gmtime(end_motion /
-                                                                                        self.video_source.get_fps()))),
-                                              self.video_source.get_frame_by_index(start_motion)[1])
+            if self.video_tagged_date is not None:
+                start = datetime.datetime.strptime(self.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
+                        + datetime.timedelta(seconds=int(start_motion / self.video_source.get_fps())) - datetime.timedelta(seconds=int(
+                    self.video_source.get_frames_num() / self.video_source.get_fps()))
+                end = datetime.datetime.strptime(self.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
+                        + datetime.timedelta(seconds=int(end_motion / self.video_source.get_fps())) - datetime.timedelta(seconds=int(
+                    self.video_source.get_frames_num() / self.video_source.get_fps()))
+                self.video_writer.add_black_frame(str(start), str(end),
+                                                  self.video_source.get_frame_by_index(start_motion)[1], True)
+            else:
+                self.video_writer.add_black_frame(str(time.strftime("%H:%M:%S", time.gmtime(start_motion /
+                                                                                            self.video_source.get_fps()))),
+                                                  str(time.strftime("%H:%M:%S", time.gmtime(end_motion /
+                                                                                            self.video_source.get_fps()))),
+                                                  self.video_source.get_frame_by_index(start_motion)[1], False)
             for frame_index in range(start_motion, end_motion + 1):
                 self.video_writer.add_frame(self.video_source.get_frame_by_index(frame_index)[1])
         self.video_writer.release()
@@ -326,7 +347,7 @@ class App:
             self.__enable_buttons()
 
     def __initialize_analyser(self):
-        self.object_detector = ObjectDetectorGraph(self)
+        self.object_detector = ObjectDetector(self)
         self.analyser = Analyser(self._parameters, self.object_detector, self.preview_checked.get())
         self.jump_to_video_beginning()
 
@@ -432,7 +453,7 @@ class App:
             self.mark_fragment(self.moving_list)
             self.already_moving = False
             self.moving_list_frames[self.motion_index][1] = return_frame_index
-            self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
+            self.moving_list_times[self.motion_index][1] = self.moving_list[1]
             print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
                                                     self.moving_list_times[self.motion_index][1]))
             self.motion_index += 1
@@ -442,7 +463,7 @@ class App:
             self.moving_list[0] = return_frame_index / self.video_source.get_fps()
             self.already_moving = True
             self.moving_list_frames.append([return_frame_index, None])
-            self.moving_list_times.append([time.strftime("%H:%M:%S", time.gmtime(self.moving_list[0])), None])
+            self.moving_list_times.append([self.moving_list[0], None])
 
         return analysed_frame
 
