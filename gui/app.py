@@ -11,10 +11,10 @@ import PIL.Image
 import PIL.ImageTk
 
 import misc.defaults as defaults
-from tools.video_writer import VideoWriter
 from tools.analyse import Analyser
 from tools.object_detection.object_detector_graph import ObjectDetectorGraph
 from tools.parameters import Parameters
+from tools.video_writer import VideoWriter
 from .parameters_window import ParametersWindow
 from .video_capture import VideoCapture
 
@@ -229,8 +229,6 @@ class App:
 
     def stop(self):
         self.play_video = False
-        for i in self.moving_list_frames:
-            print(i)
 
     def move(self, val):
         self.video_source.set_frame(int(val))
@@ -255,7 +253,6 @@ class App:
         if self.analyser is None:
             return
         if self.video_writer is None:
-            print(self.video_source.width)
             self.video_writer = VideoWriter(self.video_source.width, self.video_source.height, self.path)
 
         for motion in self.moving_list_frames:
@@ -269,6 +266,7 @@ class App:
             for frame_index in range(start_motion, end_motion + 1):
                 self.video_writer.add_frame(self.video_source.get_frame_by_index(frame_index)[1])
         self.video_writer.release()
+        messagebox.showinfo("Information", "Shortcut saved")
 
     def analyse(self):
         if self.analyser is None:
@@ -280,6 +278,8 @@ class App:
         self.stop_analyse_video_button["state"] = stop_analyse_state
         self.analyse_video_button["state"] = others_state
         self.set_parameters_button["state"] = others_state
+        self.undo_detection_button["state"] = others_state
+        self.save_video_button["state"] = others_state
 
         self.browse_button["state"] = others_state
         self.play_button["state"] = others_state
@@ -305,6 +305,7 @@ class App:
             self.analysis_thread.join()
             self.analyser.wait_for_detection()
             self.analysis_thread = None
+            self.__enable_buttons()
 
     def __initialize_analyser(self):
         self.object_detector = ObjectDetectorGraph(self)
@@ -340,24 +341,25 @@ class App:
             self.__end_analysis()
             self.analyser.wait_for_detection()
             self.__set_progress_bar_value(100.0)
+            self.__enable_buttons()
 
         end_all_point = time.time()
 
-        print("Time spent on analysis: {} s".format(end_analyse_point - starting_point))
-        print("Time spent on analysis including waiting for object detection: {} s".format(end_all_point -
-                                                                                           starting_point))
+        print("Time spent on analysis: {:.2f} s".format(end_analyse_point - starting_point))
+        print("Time spent on analysis including waiting for object detection: {:.2f} s".format(end_all_point -
+                                                                                               starting_point))
         print("Video FPS: {}".format(self.video_source.get_fps()))
         print("Video size: {} x {}".format(self.video_source.width, self.video_source.height))
         messagebox.showinfo("Information", "Analysis completed successfully")
 
     def __end_analysis(self):
         if self.moving_list[0] is not None:
-            self.moving_list[1] = self.timing_scale_value
+            self.moving_list[1] = self.timing_scale_value / self.video_source.get_fps()
             self.moving_list_frames[self.motion_index][1] = self.timing_scale_value
             self.already_moving = False
-            self.moving_list_frames[self.motion_index][1] = self.timing_scale_value
             self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
-            print(self.moving_list_times[self.motion_index])
+            print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
+                                                    self.moving_list_times[self.motion_index][1]))
             self.motion_index += 1
             self.mark_fragment(self.moving_list)
             self.analyser.run_object_analysis()
@@ -365,7 +367,6 @@ class App:
         Analyser.destroy_windows()
         self.jump_to_video_beginning()
 
-        self.__enable_buttons()
         self.run_analysis_thread = False
 
     def __set_progress_bar_value(self, value):
@@ -414,7 +415,8 @@ class App:
             self.already_moving = False
             self.moving_list_frames[self.motion_index][1] = return_frame_index
             self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
-            print(self.moving_list_times[self.motion_index])
+            print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
+                                                    self.moving_list_times[self.motion_index][1]))
             self.motion_index += 1
             self.moving_list = [None, None]
 
@@ -423,9 +425,6 @@ class App:
             self.already_moving = True
             self.moving_list_frames.append([return_frame_index, None])
             self.moving_list_times.append([time.strftime("%H:%M:%S", time.gmtime(self.moving_list[0])), None])
-
-        # if motion_detected:
-        #    self.video_writer.write(analysed_frame)
 
         return analysed_frame
 
