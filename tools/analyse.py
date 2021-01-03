@@ -1,8 +1,8 @@
+import threading
 from threading import Thread
 
 import cv2
 import pybgs
-import threading
 
 from .subtractors import BgSubtractorType
 
@@ -165,3 +165,6 @@ class Analyser:
 
     def set_preview_mode(self, mode):
         self._show_preview = mode
+
+    def set_frame_counter(self, value):
+        self._frame_counter = value

@@ -11,6 +11,7 @@ import tkinter.ttk as ttk
 
 import PIL.Image
 import PIL.ImageTk
+import yaml
 
 import misc.defaults as defaults
 from tools.analyse import Analyser
@@ -195,7 +196,7 @@ class App:
                 self.__initialize_analyser()
             except ValueError as e:
                 messagebox.showerror("Error", e)
-          
+
             self.__init_analyse_stat()
 
             # mediainfo
@@ -258,8 +259,11 @@ class App:
         self.play_video = False
 
     def move(self, val):
-        self.video_source.set_frame(int(val))
-        self.timing_scale_value = int(val)
+        int_val = int(val)
+        self.video_source.set_frame(int_val)
+        self.timing_scale_value = int_val
+        if self.analyser is not None:
+            self.analyser.set_frame_counter(int_val)
 
     def open_parameters_button(self):
         if self._parameters_window is None:
@@ -397,6 +401,8 @@ class App:
             self.moving_list_frames[self.motion_index][1] = self.timing_scale_value
             self.already_moving = False
             self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
+            self.__swap_moving_list_if_needed()
+
             print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
                                                     self.moving_list_times[self.motion_index][1]))
             self.motion_index += 1
@@ -407,6 +413,14 @@ class App:
         self.jump_to_video_beginning()
 
         self.run_analysis_thread = False
+
+    def __swap_moving_list_if_needed(self):
+        if self.moving_list[0] > self.moving_list[1]:
+            self.moving_list[0], self.moving_list[1] = self.moving_list[1], self.moving_list[0]
+            self.moving_list_frames[0], self.moving_list_frames[1] = self.moving_list_frames[1], \
+                                                                     self.moving_list_frames[0]
+            self.moving_list_times[0], self.moving_list_times[1] = self.moving_list_times[1], \
+                                                                   self.moving_list_times[0]
 
     def __set_progress_bar_value(self, value):
         self.progress_bar["value"] = value
@@ -450,10 +464,15 @@ class App:
         analysed_frame, motion_detected, return_frame_index = self.analyser.analyse_frame(frame)
         if not motion_detected and self.already_moving:
             self.moving_list[1] = return_frame_index / self.video_source.get_fps()
-            self.mark_fragment(self.moving_list)
             self.already_moving = False
             self.moving_list_frames[self.motion_index][1] = return_frame_index
+
             self.moving_list_times[self.motion_index][1] = self.moving_list[1]
+
+            #self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
+            self.__swap_moving_list_if_needed()
+            self.mark_fragment(self.moving_list)
+
             print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
                                                     self.moving_list_times[self.motion_index][1]))
             self.motion_index += 1
