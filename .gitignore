@@ -235,3 +235,5 @@ config.txt
 annotations.txt
 output.avi
 00254.MTS
+*.txt
+*.avi
