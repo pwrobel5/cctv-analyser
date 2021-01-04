@@ -126,6 +126,7 @@ class App:
         self.fragment_list = ttk.Treeview(self.analyse_frame, columns=["beginning", "end"], show="headings")
         self.fragment_list.heading("beginning", text="beginning")
         self.fragment_list.heading("end", text="end")
+        self.fragment_list.bind("<Double-1>", self.__on_analysed_time_double_click)
         self.fragment_list.pack()
 
         self.preview_checked = tkinter.BooleanVar()
@@ -157,6 +158,17 @@ class App:
         self.save_video_button = tkinter.Button(self.analyse_frame, text="Save shortcut video",
                                                 command=self.save_shortcut)
         self.save_video_button.pack(side=tkinter.BOTTOM)
+
+    def __on_analysed_time_double_click(self, event):
+        if not self.camera_used:
+            item = self.fragment_list.selection()[0]
+            item_id = self.fragment_list.index(item)
+            selected_motion = self.moving_list_frames[item_id]
+            new_start_frame = selected_motion[0]
+
+            self.current_frame = new_start_frame
+            self.move(new_start_frame)
+
 
     def use_camera(self):
         if self.camera_used:
