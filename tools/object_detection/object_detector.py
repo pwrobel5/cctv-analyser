@@ -37,8 +37,7 @@ class ObjectDetector:
         self.prop = None
         self.total = None
 
-
-        #CUDA = torch.cuda.is_available()
+        # CUDA = torch.cuda.is_available()
 
         self._lock = threading.Lock()
 
@@ -128,7 +127,7 @@ class ObjectDetector:
 
             if len(frames) > 0:
                 self._save(index, found_objects)
-            #print("FINISHED " + str(index) )
+            # print("FINISHED " + str(index) )
 
     # time.strftime("%H:%M:%S", time.gmtime(self.moving_list[0]))
 
@@ -140,12 +139,17 @@ class ObjectDetector:
         path = path[0: path.rfind("."):] + "_annotations_" + str(analyse_index) + ".txt"
         if self.app.video_tagged_date is not None:
             # UTC 2013-08-15 14:31:51
-            start = datetime.strptime(self.app.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
-                    + timedelta(seconds=int(self.app.get_moving_times(index)[0])) - timedelta(seconds=int(
-                self.app.video_source.get_frames_num() / self.app.video_source.get_fps()))
-            end = datetime.strptime(self.app.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
-                  + timedelta(seconds=int(self.app.get_moving_times(index)[1])) - timedelta(seconds=int(
-                self.app.video_source.get_frames_num() / self.app.video_source.get_fps()))
+            try:
+                start = datetime.strptime(self.app.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
+                        + timedelta(seconds=int(self.app.get_moving_times(index)[0])) - timedelta(seconds=int(
+                    self.app.video_source.get_frames_num() / self.app.video_source.get_fps()))
+                end = datetime.strptime(self.app.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
+                      + timedelta(seconds=int(self.app.get_moving_times(index)[1])) - timedelta(seconds=int(
+                    self.app.video_source.get_frames_num() / self.app.video_source.get_fps()))
+            except IndexError:
+                print("Wrong index")
+            except TypeError:
+                print("Wrong type detected")
 
             f = open(path, "a")
             f.write(str(start) + " - " + str(end) + ": ")
@@ -155,11 +159,16 @@ class ObjectDetector:
             f.close()
         else:
             f = open(path, "a")
-            f.write(time.strftime("%H:%M:%S", time.gmtime(self.app.get_moving_times(index)[0])) + " - " + time.strftime(
-                "%H:%M:%S", time.gmtime(
-                    self.app.get_moving_times(index)[1])) + ": ")
-            for o in objects:
-                f.write(o + " ")
-            f.write(" \n")
+            try:
+                moving_times = self.app.get_moving_times(index)
+                f.write(time.strftime("%H:%M:%S", time.gmtime(moving_times[0])) + " - " + time.strftime(
+                    "%H:%M:%S", time.gmtime(
+                        moving_times[1])) + ": ")
+                for o in objects:
+                    f.write(o + " ")
+                f.write(" \n")
+            except IndexError:
+                print("Wrong index")
+            except TypeError:
+                print("Wrong type detected")
             f.close()
-

@@ -54,7 +54,7 @@ class Analyser:
         self._frames_to_detect = []
         self._motion_index += 1
 
-    def analyse_frame(self, frame):
+    def analyse_frame(self, frame, perform_object_detection=True):
         return_frame_index = None
         self._frame_counter += 1
         self.__switch_subtractors_if_needed()
@@ -80,7 +80,7 @@ class Analyser:
             self.__set_break_counters()
 
             if self._breaking_frames >= self._parameters.max_break_length:
-                if self._motion_detected:
+                if perform_object_detection and self._motion_detected:
                     self.run_object_analysis()
 
                 return_frame_index = self._movement_end

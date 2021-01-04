@@ -22,8 +22,6 @@ from .parameters_window import ParametersWindow
 from .video_capture import VideoCapture
 
 
-
-
 class App:
     def __init__(self, window, window_title):
         self.window = window
@@ -47,6 +45,7 @@ class App:
         self.moving_list_frames = []
         self.moving_list_times = []
         self.motion_index = 0
+        self.max_frame = 0
 
         self.__set_style()
         self.__create_frames()
@@ -213,6 +212,7 @@ class App:
         self.moving_list_frames = []
         self.moving_list_times = []
         self.motion_index = 0
+        self.max_frame = 0
 
     def __init_analyse_stat(self):
         with open(self.analyse_stats_path) as stat_file:
@@ -293,11 +293,13 @@ class App:
             end_motion = motion[1]
             if self.video_tagged_date is not None:
                 start = datetime.datetime.strptime(self.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
-                        + datetime.timedelta(seconds=int(start_motion / self.video_source.get_fps())) - datetime.timedelta(seconds=int(
+                        + datetime.timedelta(
+                    seconds=int(start_motion / self.video_source.get_fps())) - datetime.timedelta(seconds=int(
                     self.video_source.get_frames_num() / self.video_source.get_fps()))
                 end = datetime.datetime.strptime(self.video_tagged_date, '%Z %Y-%m-%d %H:%M:%S') \
-                        + datetime.timedelta(seconds=int(end_motion / self.video_source.get_fps())) - datetime.timedelta(seconds=int(
-                    self.video_source.get_frames_num() / self.video_source.get_fps()))
+                      + datetime.timedelta(seconds=int(end_motion / self.video_source.get_fps())) - datetime.timedelta(
+                    seconds=int(
+                        self.video_source.get_frames_num() / self.video_source.get_fps()))
                 self.video_writer.add_black_frame(str(start), str(end),
                                                   self.video_source.get_frame_by_index(start_motion)[1], True)
             else:
@@ -397,10 +399,11 @@ class App:
 
     def __end_analysis(self):
         if self.moving_list[0] is not None:
+            self.max_frame = self.timing_scale_value
             self.moving_list[1] = self.timing_scale_value / self.video_source.get_fps()
             self.moving_list_frames[self.motion_index][1] = self.timing_scale_value
             self.already_moving = False
-            self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
+            self.moving_list_times[self.motion_index][1] = self.timing_scale_value / self.video_source.get_fps()
             self.__swap_moving_list_if_needed()
 
             print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
@@ -461,28 +464,34 @@ class App:
             self.window.after(self.delay, self.update)
 
     def __analyse_frame_update_list(self, frame):
-        analysed_frame, motion_detected, return_frame_index = self.analyser.analyse_frame(frame)
-        if not motion_detected and self.already_moving:
-            self.moving_list[1] = return_frame_index / self.video_source.get_fps()
-            self.already_moving = False
-            self.moving_list_frames[self.motion_index][1] = return_frame_index
+        perform_object_detection = self.timing_scale_value >= self.max_frame
+        analysed_frame, motion_detected, return_frame_index = self.analyser.analyse_frame(frame,
+                                                                                          perform_object_detection)
 
-            self.moving_list_times[self.motion_index][1] = self.moving_list[1]
+        if return_frame_index is not None:
+            if not motion_detected and self.already_moving and return_frame_index >= self.max_frame:
+                self.max_frame = max(return_frame_index, self.max_frame)
+                self.moving_list[1] = return_frame_index / self.video_source.get_fps()
+                self.already_moving = False
+                self.moving_list_frames[self.motion_index][1] = return_frame_index
 
-            #self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
-            self.__swap_moving_list_if_needed()
-            self.mark_fragment(self.moving_list)
+                self.moving_list_times[self.motion_index][1] = self.moving_list[1]
 
-            print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
-                                                    self.moving_list_times[self.motion_index][1]))
-            self.motion_index += 1
-            self.moving_list = [None, None]
+                # self.moving_list_times[self.motion_index][1] = time.strftime("%H:%M:%S", time.gmtime(self.moving_list[1]))
+                self.__swap_moving_list_if_needed()
+                self.mark_fragment(self.moving_list)
 
-        elif motion_detected and not self.already_moving:
-            self.moving_list[0] = return_frame_index / self.video_source.get_fps()
-            self.already_moving = True
-            self.moving_list_frames.append([return_frame_index, None])
-            self.moving_list_times.append([self.moving_list[0], None])
+                print("Motion detected: {} - {}".format(self.moving_list_times[self.motion_index][0],
+                                                        self.moving_list_times[self.motion_index][1]))
+                self.motion_index += 1
+                self.moving_list = [None, None]
+
+            elif motion_detected and not self.already_moving and return_frame_index >= self.max_frame:
+                self.max_frame = max(return_frame_index, self.max_frame)
+                self.moving_list[0] = return_frame_index / self.video_source.get_fps()
+                self.already_moving = True
+                self.moving_list_frames.append([return_frame_index, None])
+                self.moving_list_times.append([self.moving_list[0], None])
 
         return analysed_frame
 

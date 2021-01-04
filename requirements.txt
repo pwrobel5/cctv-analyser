@@ -5,3 +5,4 @@ Pillow==7.1.2
 pyttk==0.3.2
 pybgs~=3.0.0.post2
 PyYAML~=5.3.1
+pymediainfo~=5.0.3
