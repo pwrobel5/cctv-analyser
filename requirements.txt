@@ -1,7 +1,7 @@
 future==0.18.3
 numpy==1.22.0
 opencv-python==4.2.0.34
-Pillow==9.0.1
+Pillow==10.0.1
 pyttk==0.3.2
 pybgs~=3.0.0.post2
 PyYAML>=5.4
